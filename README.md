@@ -57,13 +57,6 @@ pyTIDES/                        # this package's root (pyproject.toml lives here
 └── README.md
 ```
 
-The original C TIDES library (Abad et al. 2012, GPLv3) is vendored separately in a sibling
-`../C/libTIDES` directory, *outside* this package -- see
-[`docs/design-notes.md`](docs/design-notes.md) §1 for why it's there; it isn't required to build,
-run, or test anything under `pyTIDES/`.
-
----
-
 ## Getting Started
 
 ### Prerequisites
