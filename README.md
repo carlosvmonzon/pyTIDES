@@ -86,9 +86,7 @@ pip install -e ".[mpfr,fast,test,dev]"   # everything
 ```
 
 No C compiler is required for any of the above -- the whole Python-side integrator (including
-the Numba-accelerated path) is pure Python/JIT, with no build step. The original C library in
-`../C/` is vendored separately and isn't required to build, run, or test this package -- see
-[`docs/design-notes.md`](docs/design-notes.md) §1 for why it's here.
+the Numba-accelerated path) is pure Python/JIT, with no build step.
 
 ### Development
 
