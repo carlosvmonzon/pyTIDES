@@ -1,0 +1,12 @@
+# Install once per clone: pip install -e ".[dev]" && pre-commit install
+#
+# Deliberately lint-only (ruff check), no ruff-format hook: this codebase
+# uses manual alignment in places (see pyproject.toml's [tool.ruff.lint]
+# comment) that an auto-formatter would flatten -- see docs/design-notes.md.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.0
+    hooks:
+      - id: ruff
+        name: ruff check (src/ + tests/)
+        args: [--fix]

@@ -1,0 +1,46 @@
+name: Tests
+
+# NOTE: this file lives at pyTIDES/.github/workflows/tests.yml. GitHub
+# Actions only picks up workflows under a repository's *root* .github/
+# directory -- right now pyTIDES/ is a subfolder of a larger, unrelated
+# monorepo, so this workflow is inert until pyTIDES/ becomes the root of
+# its own repository (see docs/design-notes.md and the project's
+# production-readiness notes). At that point this file needs no changes.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ruff
+        run: pip install ruff>=0.16
+      - name: ruff check
+        run: ruff check src/ tests/
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install exotides (editable, with mpfr/fast/test extras)
+        run: pip install -e ".[mpfr,fast,test]"
+
+      - name: Run test suite with coverage
+        run: pytest tests/ -v --cov=exotides --cov-report=term-missing

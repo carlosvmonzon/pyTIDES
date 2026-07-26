@@ -1,0 +1,90 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "exotides"
+version = "0.1.0"
+description = "Python port of the TIDES Taylor-integration N-body library (Abad et al.), for hierarchical exoplanet systems up to 5 bodies."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "TODO: Your Name", email = "cvazquez@uloyola.es" },
+]
+requires-python = ">=3.9"
+keywords = [
+    "n-body",
+    "taylor-series",
+    "orbital-mechanics",
+    "exoplanets",
+    "astrodynamics",
+    "celestial-mechanics",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "numpy>=1.24",
+    "matplotlib>=3.7",
+]
+
+[project.optional-dependencies]
+mpfr = ["gmpy2>=2.1.0"]
+fast = ["numba>=0.58"]
+test = ["pytest>=7.0", "pytest-cov>=4.1"]
+dev = ["ruff>=0.16", "pre-commit>=3.5"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["exotides*"]
+
+[tool.ruff]
+target-version = "py39"
+# Generous on purpose: this codebase favors verbose, explanatory comments
+# and docstrings over terseness -- line-length exists to catch genuinely
+# unwieldy lines, not to force-wrap the existing style.
+line-length = 140
+
+[tool.ruff.lint]
+# Lint-only, deliberately no `ruff format` and no isort ("I") adoption:
+# several files use manual alignment (e.g. src/exotides/orbital.py's trig
+# variables, paired `;`-separated assignments) that an auto-formatter would
+# flatten, and this project's import grouping (stdlib / plotting-numeric
+# libs / tests/helpers / exotides) doesn't match isort's default first-
+# party detection, so auto-sorting would reshuffle more than it fixes.
+select = ["E", "F", "UP"]
+ignore = [
+    "E702",  # multiple statements per line (;) -- intentional compact pairing in orbital.py
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    # Test functions here intentionally return data (e.g. an error/diff
+    # value, a diagnostics dict) so tests/*.py's main() can reuse it when
+    # run as a standalone script (python test_foo.py) -- the assertions
+    # inside are what pytest actually checks.
+    "ignore::pytest.PytestReturnNotNoneWarning",
+]
+
+[tool.coverage.run]
+# Only src/exotides itself -- tests/ is the measuring instrument, not the
+# thing being measured.
+source = ["exotides"]
+
+[tool.coverage.report]
+exclude_also = [
+    "pragma: no cover",
+]
+# NOTE: src/exotides/plotting.py will show up almost entirely uncovered.
+# That's accurate, not a config gap: every tests/*.py test defaults
+# output_dir=None and skips plotting/animation calls under pytest by
+# design (see the earlier pytest-conversion work) -- plotting.py is
+# instead exercised by running the scripts directly (python test_foo.py),
+# which is still the real acceptance check for that module.

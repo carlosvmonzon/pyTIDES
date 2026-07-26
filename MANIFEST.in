@@ -1,0 +1,11 @@
+# Non-code files referenced by README.md / packaging metadata that
+# setuptools wouldn't otherwise know to include in the sdist.
+#
+# Deliberately sdist-only, not shipped in the wheel: these are
+# documentation assets for README.md, not runtime package data -- nothing
+# under src/exotides/ loads them, so bundling them into every `pip install`
+# would just bloat site-packages for no functional benefit.
+include LICENSE
+include CHANGELOG.md
+include README.md
+recursive-include figures/hierarchy_diagrams *.png
