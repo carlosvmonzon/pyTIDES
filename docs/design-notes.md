@@ -108,9 +108,6 @@ Within that narrower scope, a few tradeoffs can still matter:
 - **No compiled extension to build for the Python-only path.** The core solver, the
   hierarchy builder, the 1PN correction and even the Numba-accelerated fast path are all
   pure Python/JIT -- no C compiler needed at all to install or to read/modify the physics.
-  (This repo does also vendor the original TIDES C library, under `C/libTIDES` -- see §1
-  above -- but purely for lineage; nothing in the `exotides` package or its test suite calls
-  into it.)
 - **A semantic hierarchy-template catalog built in.** `HierarchicalSystemTemplates` ships
   22 named star/planet/moon configurations (S-type, P-type, nested triples) with correct
   Jacobi-ordering baked in, rather than requiring every configuration to be hand-assembled
