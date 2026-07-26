@@ -19,7 +19,7 @@ described in:
 > 39(1), 2012.
 
 The original TIDES (GME group, Universidad de Zaragoza) ships as a **C/Fortran library**
-(`libTIDES`, vendored under `../C/libTIDES` in this repo) plus a **Mathematica** preprocessor
+(`libTIDES`) plus a **Mathematica** preprocessor
 (`MathTIDES`) that generates the C/Fortran code. There is no official Python
 implementation or binding — checked directly against the project's SourceForge page
 (gme.unizar.es/software/tides), which lists only those two interfaces. The closest
