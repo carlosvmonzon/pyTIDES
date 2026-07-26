@@ -20,18 +20,29 @@ Three checks:
    moon, a planet in a binary, a nested triple star), not just the bare
    two-body setup used in check 2 -- via ``exotides.plotting.plot_pn_comparison``,
    which works with *any* catalog template.
+4. ``pn_pair_quality``/``warn_pn_quality`` flag pairs whose mass ratio makes
+   the "dominant mass" approximation unreliable (e.g. an equal-mass binary
+   star), and stay silent for genuinely hierarchical mass ratios -- both as
+   a direct unit check and through the ``physics="pn"`` template API.
 """
 
 import math
+import warnings
 
 import numpy as np
 import pytest
 
 from helpers import PYTHON_DIR, build_two_body_system, precession_rate
 from exotides.core import TidesSolver
+from exotides.hierarchy import HierarchicalSystemTemplates
 from exotides.nbody import nbody_mincseries, nbody_pn_mincseries, unpack_state
 from exotides.plotting import plot_pn_comparison, pn_comparison_diagnostics
-from exotides.relativity import append_pn_params, gr_precession_rate_per_orbit
+from exotides.relativity import (
+    append_pn_params,
+    gr_precession_rate_per_orbit,
+    pn_pair_quality,
+    warn_pn_quality,
+)
 
 
 def test_pn_off_matches_plain_newtonian():
@@ -73,6 +84,41 @@ def test_pn_precession_matches_gr_formula():
         f"analytic GR rate {analytic_per_orbit:.6g}/orbit (ratio={ratio:.4f})"
     )
     return numeric_per_orbit, analytic_per_orbit, ratio
+
+
+def test_pn_pair_quality_thresholds():
+    """Mass-ratio thresholds classifying the 1PN approximation per pair."""
+    assert pn_pair_quality(1.0, 1.0e-4) == "good"     # star-planet
+    assert pn_pair_quality(1.0, 0.2) == "fair"         # ratio 5
+    assert pn_pair_quality(1.0, 1.0) == "poor"         # equal-mass binary
+    assert pn_pair_quality(1.0, 0.0) == "good"         # zero mass never triggers a warning
+
+
+def test_warn_pn_quality_silent_for_hierarchical_masses():
+    """No warning for an extreme-mass-ratio (star/planet/moon) system."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        warn_pn_quality([1.0, 1.0e-4, 1.0e-6], names=["Star", "Planet", "Moon"])
+
+
+def test_warn_pn_quality_flags_comparable_masses():
+    """A comparable-mass pair raises a UserWarning naming that pair."""
+    with pytest.warns(UserWarning, match="Star A-Star B"):
+        warn_pn_quality([1.0, 1.0, 1.0e-4], names=["Star A", "Star B", "Planet"])
+
+
+def test_solve_hierarchy_pn_warns_for_binary_star():
+    """physics='pn' surfaces the same warning through the template API."""
+    with pytest.warns(UserWarning, match="poor"):
+        HierarchicalSystemTemplates.solve_hierarchy(
+            "binary_star",
+            [1.0, 1.0],
+            elements={1: {"a": 1.0, "e": 0.4, "i": 0.0, "lan": 0.0, "aop": 0.0, "ta": 0.0}},
+            physics="pn",
+            speed_of_light=40.0,
+            tend=0.01,
+            dt=0.01,
+        )
 
 
 # Hierarchy-template cases (not the bare two-body setup used above), each

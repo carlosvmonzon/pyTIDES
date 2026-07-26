@@ -27,11 +27,19 @@ N-body parameters, as one extra trailing value:
 """
 
 import math
+import warnings
 
 import numpy as np
 
 
 PN_PARAM_COUNT = 1
+
+# Heuristic heavier-to-lighter mass-ratio thresholds used by
+# pn_pair_quality/warn_pn_quality below -- not a rigorously derived error
+# bound, just a practical rule of thumb for how far a pair is from the
+# extreme-mass-ratio limit the "dominant mass" approximation assumes.
+PN_QUALITY_RATIO_GOOD = 10.0
+PN_QUALITY_RATIO_FAIR = 3.0
 
 
 def append_pn_params(p_init, c):
@@ -64,3 +72,73 @@ def gr_precession_rate_per_orbit(G, M, a, e, c):
     ``tests/test_relativity.py``.
     """
     return 6.0 * math.pi * G * M / (c ** 2 * a * (1.0 - e ** 2))
+
+
+def pn_pair_quality(m_a, m_b):
+    """
+    Heuristic quality label -- ``"good"``, ``"fair"``, or ``"poor"`` -- for
+    the pairwise "dominant mass" 1PN approximation (module docstring above)
+    applied to one pair of masses.
+
+    The approximation replaces a pair's *mutual* two-body 1PN dynamics with
+    a test body orbiting a fixed point-mass source, which is only exact in
+    the limit of an extreme mass ratio (Anderson et al. 1975). The heavier-
+    to-lighter mass ratio is used here as a proxy for how far a pair is from
+    that limit:
+
+        ratio >= 10        -> "good"  (e.g. star-planet, planet-moon)
+        3 <= ratio < 10     -> "fair"
+        ratio < 3           -> "poor"  (comparable masses, e.g. an
+                                         equal-mass binary star)
+    """
+    lo, hi = sorted((abs(m_a), abs(m_b)))
+    if lo == 0.0:
+        return "good"
+    ratio = hi / lo
+    if ratio >= PN_QUALITY_RATIO_GOOD:
+        return "good"
+    if ratio >= PN_QUALITY_RATIO_FAIR:
+        return "fair"
+    return "poor"
+
+
+def warn_pn_quality(masses, names=None, stacklevel=2):
+    """
+    Warn about the expected quality of the pairwise "dominant mass" 1PN
+    correction for a set of masses -- one check per *interacting* pair, not
+    just parent-child edges in a hierarchy template, since
+    ``nbody_pn_mincseries`` applies the correction between every pair of
+    bodies.
+
+    Silent when every pair is ``"good"`` (see ``pn_pair_quality``).
+    Otherwise raises one ``UserWarning`` naming the worst-quality pair(s)
+    found. ``names`` labels bodies by name instead of positional index when
+    given (e.g. a hierarchy template's body names).
+    """
+    rank = {"good": 0, "fair": 1, "poor": 2}
+    worst = "good"
+    worst_pairs = []
+    n = len(masses)
+    for j in range(n):
+        for k in range(j + 1, n):
+            quality = pn_pair_quality(masses[j], masses[k])
+            if rank[quality] > rank[worst]:
+                worst = quality
+                worst_pairs = []
+            if quality == worst and quality != "good":
+                label_j = names[j] if names is not None else f"body {j}"
+                label_k = names[k] if names is not None else f"body {k}"
+                worst_pairs.append(f"{label_j}-{label_k}")
+
+    if worst == "good":
+        return
+
+    pairs_str = ", ".join(worst_pairs)
+    warnings.warn(
+        f"1PN 'dominant mass' approximation quality is '{worst}' for this system "
+        f"(pair(s): {pairs_str}) -- it reduces each pair's mutual two-body 1PN "
+        "dynamics to a test body orbiting a fixed point-mass source, which "
+        "degrades as that pair's mass ratio approaches 1; see "
+        "exotides/relativity.py and exotides.relativity.pn_pair_quality.",
+        stacklevel=stacklevel,
+    )
