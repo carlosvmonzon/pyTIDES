@@ -9,7 +9,7 @@ description = "Python port of the TIDES Taylor-integration N-body library (Abad 
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
-    { name = "TODO: Your Name", email = "cvazquez@uloyola.es" },
+    { name = "Carlos Vázquez Monzón", email = "cvazquez@uloyola.es" },
 ]
 requires-python = ">=3.9"
 keywords = [
