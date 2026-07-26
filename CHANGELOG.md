@@ -68,7 +68,7 @@ notes). This section becomes `## [0.1.0] - YYYY-MM-DD` at the first release.
   `generate` docstrings for why this is unconditionally correct rather
   than a narrower patch): every one of the 22 catalog templates now
   satisfies both constraints to machine precision
-  (`docs/paper_experiments/exp3_hierarchy_checks.py`).
+  (`experiments/exp3_hierarchy_checks.py`).
 - `HierarchicalSystem.add_body` now validates mass positivity, `elements`
   completeness, semi-major-axis positivity, and duplicate body names,
   instead of failing later with unclear errors (or, in the duplicate-name
