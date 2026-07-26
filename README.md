@@ -61,18 +61,24 @@ pyTIDES/                        # this package's root (pyproject.toml lives here
 
 ### Prerequisites
 
-From `pyTIDES/` (this package's root), install it in editable mode -- this pulls in `numpy` and
-`matplotlib` automatically (both are plain `dependencies` in `pyproject.toml`) and makes
-`import exotides` work from anywhere, including the `tests/` scripts, with no `sys.path`
-manipulation needed:
+`exotides` is published on [PyPI](https://pypi.org/project/exotides/). For normal use, this
+pulls in `numpy` and `matplotlib` automatically (both are plain `dependencies` in
+`pyproject.toml`):
 ```bash
-pip install -e .
+pip install exotides
 ```
 
 Optional extras (declared in `pyproject.toml`):
 ```bash
-pip install -e ".[mpfr]"   # + gmpy2, arbitrary-precision ("mpfr") integration
-pip install -e ".[fast]"   # + numba, faster Newtonian integration (see Features Guide §5)
+pip install "exotides[mpfr]"   # + gmpy2, arbitrary-precision ("mpfr") integration
+pip install "exotides[fast]"   # + numba, faster Newtonian integration (see Features Guide §5)
+```
+
+If you want to develop or contribute -- run the test suite, use the scripts under `tests/` or
+`experiments/`, or edit the source and see changes immediately -- install from source in editable
+mode instead, from `pyTIDES/` (this package's root):
+```bash
+pip install -e .
 pip install -e ".[test]"   # + pytest, pytest-cov -- see Running the Verification Suite
 pip install -e ".[dev]"    # + ruff, pre-commit -- see Development below
 pip install -e ".[mpfr,fast,test,dev]"   # everything
