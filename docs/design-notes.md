@@ -179,3 +179,32 @@ So the accurate statement is: **the Taylor-series N-body engine is generic; the 
 catalog, the Jacobi-ordering/interior-reference convention, the always-terminal collision
 model, and the absence of large-N performance techniques are what's specifically built for
 —and scoped to— hierarchies.** The README has been reworded accordingly.
+
+---
+
+## 5. Future work: secular equations and tidal forces
+
+Two omissions from the present physical model are natural directions for future work rather
+than fundamental obstacles, precisely because `TidesSolver` (§4 above) has no built-in notion
+of what equations of motion it advances -- `tests/test_lorenz.py` already proves this by
+integrating the non-gravitational Lorenz system unchanged.
+
+**Secularly-averaged (orbit-averaged) equations for hierarchical triples**, of the kind
+`kozai` implements (§3), could in principle be supplied as an alternative right-hand side to
+the same adaptive-order, arbitrary-precision propagator -- letting the fast-orbital-phase-free
+regime benefit from high-order Taylor propagation and arbitrary precision the same way the
+direct N-body regime already does. This is a substantial addition rather than a new force
+term, however: the secular state (eccentricity/angular-momentum vectors or orbital elements
+evolved directly) is not the Cartesian per-body layout `pack_state`/`unpack_state` and
+`HierarchicalSystem` assume throughout the present package, so it would need its own
+initial-condition builder and diagnostic tools rather than a drop-in coefficient generator.
+
+**Dissipative tidal forces** (e.g. equilibrium-tide or constant-time-lag models) are absent
+from the present physical model, even though they are the standard mechanism invoked to
+arrest the same Kozai-Lidov eccentricity excursions that this package's own Kozai-Lidov test
+problem (`tests/test_kozai_nbody.py`) drives all the way to a terminal collision -- gravity
+alone, with no tidal dissipation, carries that configuration to contact. Adding such a term
+would follow the same pattern already used for the 1PN correction
+(`src/exotides/relativity.py`): an additional pairwise acceleration term in the same
+Newtonian coefficient generator, and would not require the architectural change the
+secular-equations extension above does.
