@@ -1,0 +1,16 @@
+numpy>=1.24
+matplotlib>=3.7
+
+[dev]
+ruff>=0.16
+pre-commit>=3.5
+
+[fast]
+numba>=0.58
+
+[mpfr]
+gmpy2>=2.1.0
+
+[test]
+pytest>=7.0
+pytest-cov>=4.1
