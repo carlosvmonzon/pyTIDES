@@ -339,20 +339,6 @@ class HierarchicalSystem:
     # Coordinate resolution
     # ------------------------------------------------------------------
 
-    def _shift_subtree(self, node, dpos, dvel):
-        """Recursively shift all *already-resolved* nodes in a subtree by (dpos, dvel)."""
-        # Al mover un baricentro ya resuelto hay que desplazar también todos
-        # sus descendientes para conservar posiciones relativas. Los hijos
-        # que todavía no se han resuelto (pos is None, p.ej. hermanos más
-        # anchos aún no procesados) se omiten: se colocarán después usando
-        # ya las posiciones desplazadas de sus padres.
-        if node.pos is None:
-            return
-        node.pos += dpos
-        node.vel += dvel
-        for child in node.children:
-            self._shift_subtree(child, dpos, dvel)
-
     def _subtree_barycenter(self, node):
         """Mass-weighted (mass, pos, vel) of node's entire resolved subtree."""
         total_mass = node.mass
@@ -392,13 +378,20 @@ class HierarchicalSystem:
 
     def _interior_reference(self, node, child):
         """
-        (mass, pos, vel) of the full effective "interior" reference frame
-        ``child`` orbits: node's own local interior (see ``_local_interior``)
-        combined with node's entire ancestor chain, each ancestor
-        contributing its own local interior in turn. This is what lets a
-        body several levels deep (e.g. a third star orbiting one component
-        of an inner binary) correctly feel the *whole* inner structure's
-        mass, not just its immediate parent's.
+        (mass, pos, vel, anchor) of the full effective "interior" reference
+        frame ``child`` orbits: node's own local interior (see
+        ``_local_interior``) combined with node's entire ancestor chain,
+        each ancestor contributing its own local interior in turn. This is
+        what lets a body several levels deep (e.g. a third star orbiting
+        one component of an inner binary) correctly feel the *whole* inner
+        structure's mass, not just its immediate parent's.
+
+        ``anchor`` is the outermost node actually folded into the
+        reference (``node`` itself if no ancestor qualifies, otherwise the
+        highest ancestor reached by the walk below) -- the caller must
+        re-center ``anchor``'s whole subtree, not just ``node``'s, since an
+        ancestor (and anything else attached to it) may have been folded
+        into the mass/barycenter this child's orbit was just anchored to.
         """
         total_mass, pos, vel = self._local_interior(node, child)
         wpos = total_mass * pos
@@ -422,7 +415,7 @@ class HierarchicalSystem:
             wvel = wvel + m * v
             curr = parent
 
-        return total_mass, wpos / total_mass, wvel / total_mass
+        return total_mass, wpos / total_mass, wvel / total_mass, curr
 
     def _resolve(self, node):
         """
@@ -440,7 +433,7 @@ class HierarchicalSystem:
         for child in sorted(node.children, key=lambda c: c.elements["a"]):
             el = child.elements
 
-            central_mass, central_pos, central_vel = self._interior_reference(node, child)
+            central_mass, central_pos, central_vel, anchor = self._interior_reference(node, child)
 
             mu = self.G * (central_mass + child.sys_mass)
             r_rel, v_rel = keplerian_to_cartesian(
@@ -452,9 +445,20 @@ class HierarchicalSystem:
             dpos  = -(M_C / (M_P + M_C)) * r_rel
             dvel  = -(M_C / (M_P + M_C)) * v_rel
 
-            # Re-center the whole tree so the total system barycenter stays
-            # fixed after adding this child's relative position.
-            self._shift_subtree(self.root, dpos, dvel)
+            # Re-center *anchor*'s subtree -- not always node's, and not
+            # always the global self.root -- so its own barycenter stays
+            # fixed after adding this child's relative position. `anchor`
+            # (from _interior_reference) is exactly the outermost body
+            # that was folded into central_mass/central_pos: if no
+            # ancestor qualified, that's `node` itself, so only node's
+            # subtree needs the correction (e.g. a moon's insertion only
+            # perturbs the planet it orbits, not the star further out).
+            # But if an ancestor *was* folded in (e.g. a nested triple's
+            # outer star anchoring to the combined inner pair), that
+            # ancestor -- and everything hanging off it -- must move too,
+            # or the outer barycentric constraint breaks even though the
+            # inner one looks fine.
+            self._shift_subtree(anchor, dpos, dvel)
 
             child.pos = central_pos + dpos + r_rel
             child.vel = central_vel + dvel + v_rel
