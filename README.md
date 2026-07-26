@@ -440,7 +440,12 @@ Plots and animations are saved to `pyTIDES/figures/` (created automatically).
 [`docs/design-notes.md`](docs/design-notes.md) collects everything that doesn't belong in this
 README: the TIDES method's lineage (the original C/Fortran/Mathematica implementation, why no
 official Python port exists), a precise, code-level accounting of what "not general-purpose"
-means here, and comparisons to other Taylor-series/N-body codes -- heyoka, REBOUND, and `kozai`.
+means here, comparisons to other Taylor-series/N-body codes -- heyoka, REBOUND, and `kozai` --
+and, in its final section, two concrete future-work directions given the genericity of
+`TidesSolver`: supplying `kozai`-style secularly-averaged (orbit-averaged) equations as an
+alternative right-hand side, and adding dissipative tidal forces to the present Newtonian
+force model (the mechanism this package's own Kozai-Lidov test problem currently lacks, which
+is why it drives all the way to a terminal collision instead of an arrested cycle).
 
 ---
 
