@@ -17,6 +17,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 
 PYTIDES_ROOT = Path(__file__).resolve().parents[2]
 FIGURES_DIR = PYTIDES_ROOT / "figures" / "paper_figures"
@@ -44,6 +45,28 @@ def build_two_body_system(
         elements={"a": a, "e": e, "i": i, "lan": lan, "aop": aop, "ta": ta},
     )
     return system.generate()
+
+
+def eccentricity_vector_angles(positions, velocities, mu, body_idx=1, parent_idx=0):
+    """Unwrapped in-plane eccentricity-vector angle (pericenter longitude)."""
+    import math
+    n = len(positions)
+    angle = np.empty(n)
+    for idx in range(n):
+        r_vec = positions[idx, body_idx] - positions[idx, parent_idx]
+        v_vec = velocities[idx, body_idx] - velocities[idx, parent_idx]
+        r = np.linalg.norm(r_vec)
+        h_vec = np.cross(r_vec, v_vec)
+        e_vec = np.cross(v_vec, h_vec) / mu - r_vec / r
+        angle[idx] = math.atan2(e_vec[1], e_vec[0])
+    return np.unwrap(angle)
+
+
+def precession_rate(t_hist, positions, velocities, mu, body_idx=1, parent_idx=0):
+    """Linear-fit precession rate (rad per unit time) of the pericenter longitude."""
+    angles = eccentricity_vector_angles(positions, velocities, mu, body_idx, parent_idx)
+    rate, _ = np.polyfit(t_hist, angles, 1)
+    return rate
 
 
 def build_two_body_system_mpfr(

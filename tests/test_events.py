@@ -39,15 +39,24 @@ M_JUP = 9.543e-4      # Jupiter mass, in solar masses
 R_SUN = 0.00465047    # 1 solar radius, in AU
 R_JUP = 0.00046732    # 1 Jupiter radius, in AU
 
-# Two ~8-Jupiter-mass planets a=1.0/1.10 AU apart, eccentric and mutually
+# Two ~8-Jupiter-mass planets a=1.0/1.03 AU apart, eccentric and mutually
 # inclined -- close enough (a handful of mutual Hill radii) that their
 # perturbation is strongly chaotic rather than a stable, slowly-precessing
-# pair. Found empirically: this configuration collides at t~28.3 yr.
+# pair. Found empirically: this configuration collides at t~4.27 yr --
+# deliberately picked to collide fast (a couple of orbits in, not a couple
+# dozen): the collision *time* of a chaotic instability is itself
+# chaos-sensitive to floating-point-level changes in how the initial
+# condition is computed (verified stable to 1e-13 here across
+# tolrel/tolabs from 1e-12 to 1e-14, and identical between the add_body and
+# template construction paths), so picking a configuration that collides
+# within the first couple of Lyapunov times keeps the test robust to
+# legitimate, tiny numerical changes elsewhere in the package -- a wider
+# separation that only collides after dozens of chaotic orbits does not.
 MASSES = [1.0, 8.0 * M_JUP, 8.0 * M_JUP]
 RADII = [R_SUN, R_JUP, R_JUP]
-P1_ELEMENTS = {"a": 1.00, "e": 0.05, "i": 0.00, "lan": 0.0, "aop": 0.0, "ta": 0.0}
-P2_ELEMENTS = {"a": 1.10, "e": 0.15, "i": 0.05, "lan": 0.3, "aop": 0.2, "ta": 0.0}
-TEND = 50.0  # years -- generous margin past the ~28.3 yr collision
+P1_ELEMENTS = {"a": 1.00, "e": 0.30, "i": 0.00, "lan": 0.0, "aop": 0.0, "ta": 0.0}
+P2_ELEMENTS = {"a": 1.03, "e": 0.30, "i": 0.05, "lan": 0.3, "aop": 0.2, "ta": 0.0}
+TEND = 50.0  # years -- generous margin past the ~4.27 yr collision
 
 
 def _build_unstable_two_planets():
