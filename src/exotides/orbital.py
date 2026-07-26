@@ -378,20 +378,13 @@ class HierarchicalSystem:
 
     def _interior_reference(self, node, child):
         """
-        (mass, pos, vel, anchor) of the full effective "interior" reference
-        frame ``child`` orbits: node's own local interior (see
+        (mass, pos, vel) of the full effective "interior" reference frame
+        ``child`` orbits: node's own local interior (see
         ``_local_interior``) combined with node's entire ancestor chain,
         each ancestor contributing its own local interior in turn. This is
         what lets a body several levels deep (e.g. a third star orbiting
         one component of an inner binary) correctly feel the *whole* inner
         structure's mass, not just its immediate parent's.
-
-        ``anchor`` is the outermost node actually folded into the
-        reference (``node`` itself if no ancestor qualifies, otherwise the
-        highest ancestor reached by the walk below) -- the caller must
-        re-center ``anchor``'s whole subtree, not just ``node``'s, since an
-        ancestor (and anything else attached to it) may have been folded
-        into the mass/barycenter this child's orbit was just anchored to.
         """
         total_mass, pos, vel = self._local_interior(node, child)
         wpos = total_mass * pos
@@ -415,53 +408,48 @@ class HierarchicalSystem:
             wvel = wvel + m * v
             curr = parent
 
-        return total_mass, wpos / total_mass, wvel / total_mass, curr
+        return total_mass, wpos / total_mass, wvel / total_mass
 
     def _resolve(self, node):
         """
-        Recursively assign barycentric Cartesian coordinates starting from
-        *node*, using the Keplerian elements of its children.
+        Recursively assign Cartesian coordinates starting from *node*,
+        using the Keplerian elements of its children, in an *unshifted*
+        working frame (the global root stays fixed at the origin
+        throughout -- see ``generate()`` for the barycentering step).
 
         Children of the same parent are resolved in ascending semi-major-
         axis order (innermost first), and each child's orbit is anchored to
         the full effective mass/position of everything interior to it (its
         parent's local system *and* the parent's entire ancestor chain) --
         proper Jacobi coordinates, not just an immediate-parent
-        approximation. Every insertion re-centers the *whole* tree (from
-        the root down) so the total system barycenter stays fixed.
+        approximation.
+
+        This deliberately does *not* re-center anything after each
+        insertion (an earlier version did, incrementally, and that scheme
+        turned out to only be correct when a body's interior reference
+        never folds in an ancestor beyond its immediate parent -- e.g. it
+        silently broke the barycentric constraint for genuinely nested
+        chains such as a third star orbiting an inner binary's barycenter,
+        where the correction needs to reach further up the tree than
+        whichever subtree looked like the obvious target). Working in a
+        single unshifted frame and barycentering once at the very end
+        sidesteps the question of "how far up does this correction reach"
+        entirely: every ``r_rel``/``v_rel`` computed here is a relative
+        vector, unaffected by whatever rigid translation the final
+        barycentering step turns out to apply.
         """
         for child in sorted(node.children, key=lambda c: c.elements["a"]):
             el = child.elements
 
-            central_mass, central_pos, central_vel, anchor = self._interior_reference(node, child)
+            central_mass, central_pos, central_vel = self._interior_reference(node, child)
 
             mu = self.G * (central_mass + child.sys_mass)
             r_rel, v_rel = keplerian_to_cartesian(
                 el["a"], el["e"], el["i"], el["lan"], el["aop"], el["ta"], mu
             )
 
-            M_P   = central_mass
-            M_C   = child.sys_mass
-            dpos  = -(M_C / (M_P + M_C)) * r_rel
-            dvel  = -(M_C / (M_P + M_C)) * v_rel
-
-            # Re-center *anchor*'s subtree -- not always node's, and not
-            # always the global self.root -- so its own barycenter stays
-            # fixed after adding this child's relative position. `anchor`
-            # (from _interior_reference) is exactly the outermost body
-            # that was folded into central_mass/central_pos: if no
-            # ancestor qualified, that's `node` itself, so only node's
-            # subtree needs the correction (e.g. a moon's insertion only
-            # perturbs the planet it orbits, not the star further out).
-            # But if an ancestor *was* folded in (e.g. a nested triple's
-            # outer star anchoring to the combined inner pair), that
-            # ancestor -- and everything hanging off it -- must move too,
-            # or the outer barycentric constraint breaks even though the
-            # inner one looks fine.
-            self._shift_subtree(anchor, dpos, dvel)
-
-            child.pos = central_pos + dpos + r_rel
-            child.vel = central_vel + dvel + v_rel
+            child.pos = central_pos + r_rel
+            child.vel = central_vel + v_rel
 
             self._resolve(child)
 
@@ -502,6 +490,22 @@ class HierarchicalSystem:
                 traverse(child)
 
         traverse(self.root)
+
+        # Single barycentering pass over the whole system, using each
+        # body's own bare mass -- correct regardless of how many levels
+        # deep the tree goes, since every position/velocity assigned by
+        # _resolve() is a chain of relative vectors from the (arbitrarily
+        # placed) root: shifting all of them by the same rigid amount
+        # changes no relative geometry, only recenters the ensemble on its
+        # true center of mass. See _resolve()'s docstring for why this
+        # replaced an earlier incremental-shift scheme that broke down for
+        # genuinely nested (3+ level) hierarchies.
+        total_mass = sum(n.mass for n in ordered_nodes)
+        R_cm = sum(n.mass * n.pos for n in ordered_nodes) / total_mass
+        V_cm = sum(n.mass * n.vel for n in ordered_nodes) / total_mass
+        for n in ordered_nodes:
+            n.pos = n.pos - R_cm
+            n.vel = n.vel - V_cm
 
         N     = len(ordered_nodes)
         dtype = object if self._is_mpfr() else np.float64

@@ -129,17 +129,23 @@ def independent_binary_p_planet(masses, elements):
 
 def independent_triple_star_chain(masses, elements):
     # Bodies: 0=Star A (root), 1=Star B (parent A, a=2.0), 2=Star C (parent
-    # A per the template's flat parent list, a=15.0, "chain" triple):
-    #   Star B: mu = G(mA + mB), ref = Star A only.
+    # *B*, a=15.0 -- the actual "chain" topology: A<-B<-C, matching
+    # src/exotides/hierarchy.py's "triple_star_chain" template, NOT a flat
+    # tree with both B and C as direct children of A):
+    #   Star B: mu = G(mA + B.sys_mass) = G(mA + mB + mC) -- B's own
+    #     subtree includes C (its child), so embedding B treats "B+C" as
+    #     one point of combined mass orbiting A, exactly as a moon's mass
+    #     is folded into its planet's mu in the star-planet-moon case
+    #     above. ref = Star A only.
     #   Star C: mu = G(mA + mB + mC), ref = barycenter(Star A, Star B) --
     #     the textbook nested-triple Jacobi case: the outer star feels the
     #     combined mass/barycenter of the inner pair, not just its nominal
-    #     tree parent.
+    #     tree parent (which is literally Star B alone in this topology).
     m_A, m_B, m_C = masses
     pos = [np.zeros(3), None, None]
     vel = [np.zeros(3), None, None]
 
-    mu_B = G * (m_A + m_B)
+    mu_B = G * (m_A + (m_B + m_C))
     pos[1], vel[1] = embed(mu_B, elements[1], pos[0], vel[0])
 
     ref_pos, ref_vel = barycenter(pos, vel, masses, [0, 1])
@@ -189,7 +195,7 @@ CASES = {
             1: {"a": 2.0, "e": 0.05, "i": 0.0, "lan": 0.0, "aop": 0.0, "ta": 0.0},
             2: {"a": 15.0, "e": 0.05, "i": 0.3, "lan": 0.2, "aop": 0.1, "ta": 0.3},
         },
-        tree=[("StarA", None, None), ("StarB", "StarA", 1), ("StarC", "StarA", 2)],
+        tree=[("StarA", None, None), ("StarB", "StarA", 1), ("StarC", "StarB", 2)],
         independent=independent_triple_star_chain,
     ),
 }
