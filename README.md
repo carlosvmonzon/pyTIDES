@@ -464,9 +464,6 @@ See [`docs/design-notes.md`](docs/design-notes.md) for further references (REBOU
 
 ## License
 
-This package (`exotides`/pyTIDES) is released under the [MIT License](LICENSE). The original
-TIDES C library vendored separately under `../C/libTIDES` (see Directory Structure above and
-[`docs/design-notes.md`](docs/design-notes.md) §1) is GPLv3 and unrelated to this license --
-nothing in `exotides` or its test suite imports it.
+This package (`exotides`/pyTIDES) is released under the [MIT License](LICENSE). 
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes.
