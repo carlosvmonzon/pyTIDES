@@ -433,6 +433,19 @@ class TidesSolver:
         Extra order increment added on top of the tolerance-derived estimate.
     defect_error_control : bool
         Whether to apply defect-error-control step rejection (DEC).
+    stepsize_controller : {"pytides", "original"}
+        Which stepsize-estimate formula ``get_step`` uses, both sharing the
+        same last-nonzero-coefficient search, [rmin, rmax]-relative
+        clamping, and safety factor. ``"pytides"`` (default) is the
+        variant actually shipped: each retained coefficient at order k is
+        paired with the tolerance exponent of the *next*, untruncated
+        order (see the comment in ``get_step`` below). ``"original"``
+        instead reproduces Abad et al. (2012, Algorithm 924)'s own
+        same-index pairing, where a term at order k contributes
+        ``(TOL/|y^[k]|)^(1/k)``. Exists so the two controllers can be
+        run back to back on the same problem for a direct comparison
+        (steps taken, mean order, achieved error) -- see
+        ``experiments/exp8_stepsize_controller.py``.
     is_mpfr : bool or None
         The sole place integration precision is chosen -- independent of
         how ``v_init``/``p_init`` were built (``exotides.orbital.
@@ -458,10 +471,15 @@ class TidesSolver:
         minord=6,
         nordinc=5,
         defect_error_control=False,
+        stepsize_controller="pytides",
         is_mpfr=None,
     ):
         if is_mpfr and not HAS_GMPY2:
             raise ValueError("is_mpfr=True requires gmpy2 to be installed")
+        if stepsize_controller not in ("pytides", "original"):
+            raise ValueError(
+                f"stepsize_controller must be 'pytides' or 'original', got {stepsize_controller!r}"
+            )
         self.mincseries = mincseries_func
         self.nvar = nvar
         self.npar = npar
@@ -471,8 +489,10 @@ class TidesSolver:
         self.minord = minord
         self.nordinc = nordinc
         self.defect_error_control = defect_error_control
+        self.stepsize_controller = stepsize_controller
         self.is_mpfr = is_mpfr
         self.last_events = []
+        self.last_run_stats = {}
 
     # ------------------------------------------------------------------
     # Public interface
@@ -512,8 +532,19 @@ class TidesSolver:
             1-D array of recorded times.
         v_hist : ndarray
             2-D array of shape ``(len(t_hist), nvar)`` with states.
+
+        Also sets ``self.last_run_stats`` (cleared/overwritten at the start
+        of every call, same lifetime as ``self.last_events``):
+        ``{"accepted_steps", "rejected_steps", "mean_order",
+        "coefficient_evals"}`` -- ``coefficient_evals`` sums ``order + 1``
+        over every accepted step, a proxy for total recurrence/RHS cost
+        (cheap steps at low order cost less than expensive ones at high
+        order, unlike a plain step count). Used to compare
+        ``stepsize_controller`` variants on the same problem; see
+        ``experiments/exp8_stepsize_controller.py``.
         """
         self.last_events = []
+        self.last_run_stats = {}
         if self.is_mpfr is None:
             # Detecta si debe trabajar en multiprecisión. Basta con que una
             # variable o parámetro sea mpfr para conservar ese tipo durante
@@ -591,6 +622,8 @@ class TidesSolver:
         ipos          = 1
         accepted_steps = 0
         rejected_steps = 0
+        order_sum = 0
+        coefficient_evals = 0
 
         ynb     = gmpy2.mpfr("0.0") if is_mpfr else 0.0
         stepant = gmpy2.mpfr("0.0") if is_mpfr else 0.0
@@ -641,12 +674,31 @@ class TidesSolver:
             dordp = 1.0 / ordp
 
             ynp = norm_inf_mat(orda) if orda >= 0 else (gmpy2.mpfr("0.0") if is_mpfr else 0.0)
-            if ynp == 0.0:
-                step_val = (tol ** dordp) * ((1.0 / ynu) ** dord)
+            if self.stepsize_controller == "original":
+                # Abad et al. (2012, Algorithm 924)'s own ĥ_i: each retained
+                # coefficient at order k is paired with *its own* exponent
+                # 1/k on both TOL and ‖y^[k]‖ -- h_k = (TOL/‖y^[k]‖)^(1/k).
+                if ynp == 0.0:
+                    step_val = (tol ** dord) * ((1.0 / ynu) ** dord)
+                else:
+                    tp       = (tol ** dorda) * ((1.0 / ynp) ** dorda)
+                    tu       = (tol ** dord)  * ((1.0 / ynu) ** dord)
+                    step_val = min(tp, tu)
             else:
-                tp       = (tol ** dord)  * ((1.0 / ynp) ** dorda)
-                tu       = (tol ** dordp) * ((1.0 / ynu) ** dord)
-                step_val = min(tp, tu)
+                # tp/tu pair each retained coefficient (orda=q-1, ord_val=q)
+                # with the TOL exponent of the *next* term (ord_val, ordp)
+                # -- i.e. each coefficient is treated as an estimator of the
+                # term that is actually being truncated, not of its own
+                # order. This differs from the same-index pairing above
+                # ("original") -- a deliberately documented variant (not an
+                # unrecorded accidental divergence), with no algebraic
+                # equivalence claimed with that formula.
+                if ynp == 0.0:
+                    step_val = (tol ** dordp) * ((1.0 / ynu) ** dord)
+                else:
+                    tp       = (tol ** dord)  * ((1.0 / ynp) ** dorda)
+                    tu       = (tol ** dordp) * ((1.0 / ynu) ** dord)
+                    step_val = min(tp, tu)
 
             if stepant_val != 0.0:
                 rstep = step_val / stepant_val
@@ -781,6 +833,8 @@ class TidesSolver:
                 t0    = tend
 
             accepted_steps += 1
+            order_sum += order
+            coefficient_evals += order + 1
 
             terminal_offset = None
             if events:
@@ -832,5 +886,12 @@ class TidesSolver:
         if not stopped_by_event and (len(t_hist) == 0 or abs(float(t_hist[-1]) - float(tend)) > 1e-12):
             t_hist.append(t0)
             v_hist.append(v.copy())
+
+        self.last_run_stats = {
+            "accepted_steps": accepted_steps,
+            "rejected_steps": rejected_steps,
+            "mean_order": (order_sum / accepted_steps) if accepted_steps else 0.0,
+            "coefficient_evals": coefficient_evals,
+        }
 
         return np.array(t_hist, dtype=dtype), np.array(v_hist, dtype=dtype)

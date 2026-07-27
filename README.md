@@ -225,6 +225,25 @@ hands the exact contact time/state back to the caller to decide what to do next 
 [`docs/design-notes.md`](docs/design-notes.md) §3 for how this compares to other N-body codes'
 collision handling.
 
+### 7. Stepsize Controller Choice
+`TidesSolver(stepsize_controller=...)` selects which stepsize-estimate formula `get_step` uses
+(`src/exotides/core.py`) -- both share every other ingredient (last-nonzero-coefficient search,
+`[rmin, rmax]`-relative step clamping, safety factor), so the two isolate exactly this one
+difference:
+- `"pytides"` (default): pairs each retained Taylor coefficient with the tolerance exponent of the
+  *next*, untruncated order -- the formula pyTIDES actually ships.
+- `"original"`: Abad et al. (2012, Algorithm 924)'s own same-index pairing, where a coefficient at
+  order *k* contributes `(TOL/|y^[k]|)^(1/k)`.
+
+They are not algebraically equivalent, and the difference isn't just academic: at fixed requested
+tolerance, `"pytides"` takes ~22-23% fewer steps than `"original"`, but its achieved accuracy is
+measurably worse -- 14.8x worse at `e=0.0`/`0.6`, and 232x worse at `e=0.9` (where curvature
+concentrates hardest at pericenter). See `experiments/exp8_stepsize_controller.py` for the full
+comparison (table + figure) and the paper's stepsize-controller-comparison section for the
+complete discussion. `solver.last_run_stats` (set after every `solve()` call) exposes
+`accepted_steps`/`rejected_steps`/`mean_order`/`coefficient_evals` for building this kind of
+comparison yourself.
+
 ---
 
 ## Hierarchy Template Catalog
