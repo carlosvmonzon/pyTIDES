@@ -92,18 +92,24 @@ pyTIDES/                        # this package's root (pyproject.toml lives here
 
 ### Prerequisites
 
-From `pyTIDES/` (this package's root), install it in editable mode -- this pulls in `numpy` and
-`matplotlib` automatically (both are plain `dependencies` in `pyproject.toml`) and makes
-`import exotides` work from anywhere, including the `tests/` scripts, with no `sys.path`
-manipulation needed:
+`exotides` is published on [PyPI](https://pypi.org/project/exotides/). For normal use, this
+pulls in `numpy` and `matplotlib` automatically (both are plain `dependencies` in
+`pyproject.toml`):
 ```bash
-pip install -e .
+pip install exotides
 ```
 
 Optional extras (declared in `pyproject.toml`):
 ```bash
-pip install -e ".[mpfr]"   # + gmpy2, arbitrary-precision ("mpfr") integration
-pip install -e ".[fast]"   # + numba, faster Newtonian integration (see Features Guide §5)
+pip install "exotides[mpfr]"   # + gmpy2, arbitrary-precision ("mpfr") integration
+pip install "exotides[fast]"   # + numba, faster Newtonian integration (see Features Guide §5)
+```
+
+If you want to develop or contribute -- run the test suite, use the scripts under `tests/` or
+`experiments/`, or edit the source and see changes immediately -- install from source in editable
+mode instead, from `pyTIDES/` (this package's root):
+```bash
+pip install -e .
 pip install -e ".[test]"   # + pytest, pytest-cov -- see Running the Verification Suite
 pip install -e ".[dev]"    # + ruff, pre-commit -- see Development below
 pip install -e ".[mpfr,fast,test,dev]"   # everything
@@ -465,7 +471,12 @@ Plots and animations are saved to `pyTIDES/figures/` (created automatically).
 [`docs/design-notes.md`](docs/design-notes.md) collects everything that doesn't belong in this
 README: the TIDES method's lineage (the original C/Fortran/Mathematica implementation, why no
 official Python port exists), a precise, code-level accounting of what "not general-purpose"
-means here, and comparisons to other Taylor-series/N-body codes -- heyoka, REBOUND, and `kozai`.
+means here, comparisons to other Taylor-series/N-body codes -- heyoka, REBOUND, and `kozai` --
+and, in its final section, two concrete future-work directions given the genericity of
+`TidesSolver`: supplying `kozai`-style secularly-averaged (orbit-averaged) equations as an
+alternative right-hand side, and adding dissipative tidal forces to the present Newtonian
+force model (the mechanism this package's own Kozai-Lidov test problem currently lacks, which
+is why it drives all the way to a terminal collision instead of an arrested cycle).
 
 ---
 
@@ -484,9 +495,6 @@ See [`docs/design-notes.md`](docs/design-notes.md) for further references (REBOU
 
 ## License
 
-This package (`exotides`/pyTIDES) is released under the [MIT License](LICENSE). The original
-TIDES C library vendored separately under `../C/libTIDES` (see Directory Structure above and
-[`docs/design-notes.md`](docs/design-notes.md) §1) is GPLv3 and unrelated to this license --
-nothing in `exotides` or its test suite imports it.
+This package (`exotides`/pyTIDES) is released under the [MIT License](LICENSE). 
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes.
