@@ -235,14 +235,21 @@ difference:
 - `"original"`: Abad et al. (2012, Algorithm 924)'s own same-index pairing, where a coefficient at
   order *k* contributes `(TOL/|y^[k]|)^(1/k)`.
 
-They are not algebraically equivalent, and the difference isn't just academic: at fixed requested
-tolerance, `"pytides"` takes ~22-23% fewer steps than `"original"`, but its achieved accuracy is
-measurably worse -- 14.8x worse at `e=0.0`/`0.6`, and 232x worse at `e=0.9` (where curvature
-concentrates hardest at pericenter). See `experiments/exp8_stepsize_controller.py` for the full
-comparison (table + figure) and the paper's stepsize-controller-comparison section for the
-complete discussion. `solver.last_run_stats` (set after every `solve()` call) exposes
-`accepted_steps`/`rejected_steps`/`mean_order`/`coefficient_evals` for building this kind of
-comparison yourself.
+They are not algebraically equivalent, and the difference isn't just academic: on an isolated
+two-body Kepler orbit, at fixed requested tolerance, `"pytides"` takes ~22-23% fewer steps than
+`"original"`, but its achieved accuracy is measurably worse -- 14.8x worse at `e=0.0`/`0.6`, and
+232x worse at `e=0.9` (where curvature concentrates hardest at pericenter). That eccentricity
+trend is demonstrated only for this isolated two-body case; whether it generalizes to systems with
+additional, disparate dynamical timescales is an open question. What isn't in question is the
+direction of the trade-off itself -- cheaper, never more accurate -- at every eccentricity tested.
+See `experiments/exp8_stepsize_controller.py` for the full comparison (table + figure) and the
+paper's stepsize-controller-comparison section for the complete discussion. `solver.last_run_stats`
+(set after every `solve()` call) exposes `accepted_steps`/`rejected_steps`/`mean_order`/
+`coefficient_evals` for building this kind of comparison yourself.
+
+`stepsize_controller` is also available through `HierarchicalSystemTemplates.solve_nbody`/
+`solve_hierarchy`/`make_nbody_solver` (passed straight through to the `TidesSolver` they build),
+not just the bare `TidesSolver` constructor.
 
 ---
 

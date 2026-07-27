@@ -423,6 +423,7 @@ class HierarchicalSystemTemplates:
         minord=8,
         nordinc=5,
         defect_error_control=False,
+        stepsize_controller="pytides",
     ):
         """
         Create a ``TidesSolver`` configured for the selected hierarchy.
@@ -480,6 +481,7 @@ class HierarchicalSystemTemplates:
             minord=minord,
             nordinc=nordinc,
             defect_error_control=defect_error_control,
+            stepsize_controller=stepsize_controller,
         )
 
     @classmethod
@@ -500,6 +502,7 @@ class HierarchicalSystemTemplates:
         minord=8,
         nordinc=5,
         defect_error_control=False,
+        stepsize_controller="pytides",
     ):
         """
         Shared prep for ``solve_nbody``/``solve_hierarchy``: initial
@@ -542,6 +545,7 @@ class HierarchicalSystemTemplates:
             minord=minord,
             nordinc=nordinc,
             defect_error_control=defect_error_control,
+            stepsize_controller=stepsize_controller,
         )
         return v_init, p_init, nodes, solver
 
@@ -566,6 +570,7 @@ class HierarchicalSystemTemplates:
         minord=8,
         nordinc=5,
         defect_error_control=False,
+        stepsize_controller="pytides",
     ):
         """
         Build and integrate one hierarchy as an N-body problem, in double
@@ -611,6 +616,7 @@ class HierarchicalSystemTemplates:
             use_numba=use_numba, speed_of_light=speed_of_light, tolrel=tolrel,
             tolabs=tolabs, maxord=maxord, minord=minord, nordinc=nordinc,
             defect_error_control=defect_error_control,
+            stepsize_controller=stepsize_controller,
         )
         t_hist, states = solver.solve(v_init, p_init, tini=tini, tend=tend, dt=dt)
         return t_hist, states, p_init, nodes
@@ -637,6 +643,7 @@ class HierarchicalSystemTemplates:
         minord=8,
         nordinc=5,
         defect_error_control=False,
+        stepsize_controller="pytides",
     ):
         """
         Like ``solve_nbody`` (built from the same ``_build_nbody_run``, in
@@ -668,6 +675,7 @@ class HierarchicalSystemTemplates:
             use_numba=use_numba, speed_of_light=speed_of_light, tolrel=tolrel,
             tolabs=tolabs, maxord=maxord, minord=minord, nordinc=nordinc,
             defect_error_control=defect_error_control,
+            stepsize_controller=stepsize_controller,
         )
         if cls.get(key).n_bodies == 1:
             t_hist = np.array([tini, tend], dtype=np.float64)
