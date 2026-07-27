@@ -74,9 +74,9 @@ pip install "exotides[mpfr]"   # + gmpy2, arbitrary-precision ("mpfr") integrati
 pip install "exotides[fast]"   # + numba, faster Newtonian integration (see Features Guide §5)
 ```
 
-If you want to develop or contribute -- run the test suite, use the scripts under `tests/` or
-`experiments/`, or edit the source and see changes immediately -- install from source in editable
-mode instead, from `pyTIDES/` (this package's root):
+If you want to develop or contribute -- run the test suite, use the scripts under `tests/`,
+or edit the source and see changes immediately -- install from source in editable mode instead,
+from `pyTIDES/` (this package's root):
 ```bash
 pip install -e .
 pip install -e ".[test]"   # + pytest, pytest-cov -- see Running the Verification Suite
@@ -170,6 +170,11 @@ comparable-mass stellar binaries/triples (`exotides.plotting.plot_pn_comparison`
 two-body/Jacobi reference mass in either case, not just a "light test particle" approximation).
 It's a simplified, reduced two-body-per-pair approximation (not a full Einstein-Infeld-Hoffmann
 treatment), appropriate for the hierarchical star/planet/moon regime this package targets.
+
+`physics="pn"` also checks every interacting pair's mass ratio (`exotides.relativity.pn_pair_quality`)
+and raises a `UserWarning` (naming the worst-quality pair) whenever that approximation is a poor fit --
+e.g. a comparable-mass binary star, where "dominant mass" stops being a reasonable label for either
+component. Silent for genuinely hierarchical mass ratios (star-planet, planet-moon, ...).
 
 ### 5. Optional Numba Acceleration
 When `numba` is installed, `nbody_mincseries` (the plain-Newtonian generator) transparently
@@ -399,7 +404,7 @@ Requires the package installed with the `test` extra (`pip install -e ".[test]"`
 py -m pytest
 ```
 
-(`pytest` alone also works if the command is on your `PATH`.) This discovers and runs all 19
+(`pytest` alone also works if the command is on your `PATH`.) This discovers and runs all 23
 tests under `pyTIDES/tests/` and prints a pass/fail summary -- no arguments, no need to name
 individual files. It's the quickest way to confirm the whole verification suite still passes,
 e.g. after a change. It does **not** generate any plots/animations: every test defaults to
