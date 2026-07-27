@@ -19,7 +19,7 @@ import numpy as np
 from .core import TidesSolver
 from .nbody import nbody_mincseries, nbody_pn_mincseries
 from .orbital import HierarchicalSystem
-from .relativity import append_pn_params
+from .relativity import append_pn_params, warn_pn_quality
 
 # Physical speed of light in the same units convention as G (see
 # HierarchicalSystemTemplates.make_nbody_solver's ``c`` kwarg): with G=1 and
@@ -515,6 +515,12 @@ class HierarchicalSystemTemplates:
         """
         if physics == "pn" and speed_of_light is None:
             raise ValueError("physics='pn' requires speed_of_light")
+        if physics == "pn":
+            # Same fallback as build() below -- so the pair labels in this
+            # warning match the body names actually used in the system
+            # (and in any figure legend), instead of generic "body N".
+            warn_names = names if names is not None else cls.get(key).default_names
+            warn_pn_quality(masses, names=warn_names, system_label=key, stacklevel=4)
 
         v_init, p_init, nodes = cls.initial_conditions(
             key,

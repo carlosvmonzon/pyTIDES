@@ -102,7 +102,7 @@ def pn_pair_quality(m_a, m_b):
     return "poor"
 
 
-def warn_pn_quality(masses, names=None, stacklevel=2):
+def warn_pn_quality(masses, names=None, system_label=None, stacklevel=2):
     """
     Warn about the expected quality of the pairwise "dominant mass" 1PN
     correction for a set of masses -- one check per *interacting* pair, not
@@ -113,7 +113,11 @@ def warn_pn_quality(masses, names=None, stacklevel=2):
     Silent when every pair is ``"good"`` (see ``pn_pair_quality``).
     Otherwise raises one ``UserWarning`` naming the worst-quality pair(s)
     found. ``names`` labels bodies by name instead of positional index when
-    given (e.g. a hierarchy template's body names).
+    given (e.g. a hierarchy template's body names). ``system_label`` names
+    the system itself in the message (e.g. a hierarchy template key) --
+    without it, otherwise-identical warnings from different systems (same
+    masses, no ``names``) collapse into a single displayed message in
+    pytest's warning summary, making it look like only one system warned.
     """
     rank = {"good": 0, "fair": 1, "poor": 2}
     worst = "good"
@@ -134,8 +138,9 @@ def warn_pn_quality(masses, names=None, stacklevel=2):
         return
 
     pairs_str = ", ".join(worst_pairs)
+    system_str = f"'{system_label}' system" if system_label is not None else "this system"
     warnings.warn(
-        f"1PN 'dominant mass' approximation quality is '{worst}' for this system "
+        f"1PN 'dominant mass' approximation quality is '{worst}' for {system_str} "
         f"(pair(s): {pairs_str}) -- it reduces each pair's mutual two-body 1PN "
         "dynamics to a test body orbiting a fixed point-mass source, which "
         "degrades as that pair's mass ratio approaches 1; see "
