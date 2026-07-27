@@ -20,3 +20,7 @@ coverage.xml
 # Claude Code local state (permissions, session locks) -- no shared
 # CLAUDE.md or commands/agents here worth tracking.
 .claude/
+
+# Generated experiments and paper figures
+/experiments/
+/figures/paper_figures/
