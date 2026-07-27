@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "exotides"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python port of the TIDES Taylor-integration N-body library (Abad et al.), for hierarchical exoplanet systems up to 5 bodies."
 readme = "README.md"
 license = { text = "MIT" }

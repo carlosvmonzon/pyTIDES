@@ -7,9 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Everything below is the project's initial feature set -- nothing has been
-tagged/published yet (see docs/design-notes.md and the production-readiness
-notes). This section becomes `## [0.1.0] - YYYY-MM-DD` at the first release.
+## [0.1.1] - 2026-07-27
+
+### Fixed
+- `HierarchicalSystemTemplates.solve_hierarchy`/`solve_nbody` (`physics="pn"`)
+  built relativistic runs without ever checking the pairwise mass-ratio
+  quality, so the `UserWarning` defined in `exotides.relativity.warn_pn_quality`
+  never surfaced through the template API -- e.g. a comparable-mass binary
+  star (`binary_star`) integrated silently despite the "dominant mass" 1PN
+  approximation being a poor fit for it. Now wired in, and the warning
+  additionally names the offending template and the actual body names used
+  by that system (matching plotting legends) instead of a generic
+  "this system"/"body N" fallback.
+
+### Changed
+- README: removed a stale reference to `experiments/` (deleted from the
+  repo), documented the `physics="pn"` mass-ratio quality warning above,
+  and corrected the pytest test count (19 -> 23).
+
+## [0.1.0] - 2026-07-26
+
+Initial feature set.
 
 ### Added
 - Taylor-series (TIDES) N-body integrator (`TidesSolver`), variable-order/
