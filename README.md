@@ -30,8 +30,9 @@ apsidal precession -- all through the same `HierarchicalSystemTemplates` API.
 ```text
 pyTIDES/                        # this package's root (pyproject.toml lives here)
 ├── pyproject.toml              # Package manifest (src layout; deps + mpfr/fast/test/dev extras; ruff/pytest config)
-├── MANIFEST.in                  # sdist-only inclusions (LICENSE, CHANGELOG.md, figures/hierarchy_diagrams/*.png)
-├── LICENSE                      # MIT (this package only -- see the vendored-C note below)
+├── MANIFEST.in                  # sdist-only inclusions (LICENSE, COPYING, CHANGELOG.md, figures/hierarchy_diagrams/*.png)
+├── LICENSE                      # GPLv3-or-later (full text; identical to COPYING)
+├── COPYING                      # GPLv3-or-later (full text; same convention as the original C TIDES)
 ├── CHANGELOG.md                 # Keep a Changelog-style release notes
 ├── .pre-commit-config.yaml      # ruff check, run on commit (see Development below)
 ├── .github/
@@ -495,6 +496,18 @@ See [`docs/design-notes.md`](docs/design-notes.md) for further references (REBOU
 
 ## License
 
-This package (`exotides`/pyTIDES) is released under the [MIT License](LICENSE). 
+This package (`exotides`/pyTIDES) is released under the
+[GNU General Public License v3.0 or later](LICENSE) (GPLv3-or-later),
+matching the license of the original TIDES project it derives from.
+
+`exotides/core.py` (the Taylor Series Method core) and `exotides/events.py`
+(the event-detection subsystem) are Python ports of the corresponding parts
+of the original C TIDES library and retain the original copyright notice of
+Abad, Barrio, Blesa & Rodríguez (Grupo de Mecánica Espacial, University of
+Zaragoza) alongside a notice covering the Python port and subsequent
+modifications. The rest of the package (the hierarchy builder and template
+catalog, the 1PN correction, the Numba-accelerated path, plotting, and
+everything else new in this project) is original work released under the
+same license as part of the combined distribution.
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes.

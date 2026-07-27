@@ -3,11 +3,11 @@ Name: exotides
 Version: 0.1.1
 Summary: Python port of the TIDES Taylor-integration N-body library (Abad et al.), for hierarchical exoplanet systems up to 5 bodies.
 Author-email: Carlos Vázquez Monzón <cvazquez@uloyola.es>
-License: MIT
+License: GPL-3.0-or-later
 Keywords: n-body,taylor-series,orbital-mechanics,exoplanets,astrodynamics,celestial-mechanics
 Classifier: Development Status :: 3 - Alpha
 Classifier: Intended Audience :: Science/Research
-Classifier: License :: OSI Approved :: MIT License
+Classifier: License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)
 Classifier: Operating System :: OS Independent
 Classifier: Programming Language :: Python :: 3
 Classifier: Topic :: Scientific/Engineering :: Astronomy
@@ -15,6 +15,7 @@ Classifier: Topic :: Scientific/Engineering :: Physics
 Requires-Python: >=3.9
 Description-Content-Type: text/markdown
 License-File: LICENSE
+License-File: COPYING
 Requires-Dist: numpy>=1.24
 Requires-Dist: matplotlib>=3.7
 Provides-Extra: mpfr
@@ -61,8 +62,9 @@ apsidal precession -- all through the same `HierarchicalSystemTemplates` API.
 ```text
 pyTIDES/                        # this package's root (pyproject.toml lives here)
 ├── pyproject.toml              # Package manifest (src layout; deps + mpfr/fast/test/dev extras; ruff/pytest config)
-├── MANIFEST.in                  # sdist-only inclusions (LICENSE, CHANGELOG.md, figures/hierarchy_diagrams/*.png)
-├── LICENSE                      # MIT (this package only -- see the vendored-C note below)
+├── MANIFEST.in                  # sdist-only inclusions (LICENSE, COPYING, CHANGELOG.md, figures/hierarchy_diagrams/*.png)
+├── LICENSE                      # GPLv3-or-later (full text; identical to COPYING)
+├── COPYING                      # GPLv3-or-later (full text; same convention as the original C TIDES)
 ├── CHANGELOG.md                 # Keep a Changelog-style release notes
 ├── .pre-commit-config.yaml      # ruff check, run on commit (see Development below)
 ├── .github/
@@ -255,6 +257,32 @@ would invalidate the structure the rest of the package assumes, so integration s
 hands the exact contact time/state back to the caller to decide what to do next -- see
 [`docs/design-notes.md`](docs/design-notes.md) §3 for how this compares to other N-body codes'
 collision handling.
+
+### 7. Stepsize Controller Choice
+`TidesSolver(stepsize_controller=...)` selects which stepsize-estimate formula `get_step` uses
+(`src/exotides/core.py`) -- both share every other ingredient (last-nonzero-coefficient search,
+`[rmin, rmax]`-relative step clamping, safety factor), so the two isolate exactly this one
+difference:
+- `"pytides"` (default): pairs each retained Taylor coefficient with the tolerance exponent of the
+  *next*, untruncated order -- the formula pyTIDES actually ships.
+- `"original"`: Abad et al. (2012, Algorithm 924)'s own same-index pairing, where a coefficient at
+  order *k* contributes `(TOL/|y^[k]|)^(1/k)`.
+
+They are not algebraically equivalent, and the difference isn't just academic: on an isolated
+two-body Kepler orbit, at fixed requested tolerance, `"pytides"` takes ~22-23% fewer steps than
+`"original"`, but its achieved accuracy is measurably worse -- 14.8x worse at `e=0.0`/`0.6`, and
+232x worse at `e=0.9` (where curvature concentrates hardest at pericenter). That eccentricity
+trend is demonstrated only for this isolated two-body case; whether it generalizes to systems with
+additional, disparate dynamical timescales is an open question. What isn't in question is the
+direction of the trade-off itself -- cheaper, never more accurate -- at every eccentricity tested.
+See `experiments/exp8_stepsize_controller.py` for the full comparison (table + figure) and the
+paper's stepsize-controller-comparison section for the complete discussion. `solver.last_run_stats`
+(set after every `solve()` call) exposes `accepted_steps`/`rejected_steps`/`mean_order`/
+`coefficient_evals` for building this kind of comparison yourself.
+
+`stepsize_controller` is also available through `HierarchicalSystemTemplates.solve_nbody`/
+`solve_hierarchy`/`make_nbody_solver` (passed straight through to the `TidesSolver` they build),
+not just the bare `TidesSolver` constructor.
 
 ---
 
@@ -500,6 +528,18 @@ See [`docs/design-notes.md`](docs/design-notes.md) for further references (REBOU
 
 ## License
 
-This package (`exotides`/pyTIDES) is released under the [MIT License](LICENSE). 
+This package (`exotides`/pyTIDES) is released under the
+[GNU General Public License v3.0 or later](LICENSE) (GPLv3-or-later),
+matching the license of the original TIDES project it derives from.
+
+`exotides/core.py` (the Taylor Series Method core) and `exotides/events.py`
+(the event-detection subsystem) are Python ports of the corresponding parts
+of the original C TIDES library and retain the original copyright notice of
+Abad, Barrio, Blesa & Rodríguez (Grupo de Mecánica Espacial, University of
+Zaragoza) alongside a notice covering the Python port and subsequent
+modifications. The rest of the package (the hierarchy builder and template
+catalog, the 1PN correction, the Numba-accelerated path, plotting, and
+everything else new in this project) is original work released under the
+same license as part of the combined distribution.
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes.

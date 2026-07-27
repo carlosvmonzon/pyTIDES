@@ -16,6 +16,33 @@ Contents
 - TidesSolver - variable-stepsize, variable-order Taylor integrator that
   supports both standard float64 (double precision) and arbitrary-precision
   floats via gmpy2 (multiple precision).
+
+This file is a Python port of the Taylor Series Method core of the original
+C TIDES library (libTIDES/dp_tides.c, mp_tides.c, minc_tides.c -- see
+../C/libTIDES), from the TIDES project (http://gme.unizar.es/software/tides):
+
+    Copyright (C) 2010  A. Abad, R. Barrio, F. Blesa, M. Rodriguez
+    Grupo de Mecanica Espacial, University of Zaragoza, SPAIN
+    Contact: <tides@unizar.es>
+
+Python port and subsequent modifications:
+
+    Copyright (C) 2026  Carlos Vazquez Monzon
+
+This file is part of pyTIDES (the ``exotides`` package).
+
+pyTIDES is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option)
+any later version.
+
+pyTIDES is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+details.
+
+You should have received a copy of the GNU General Public License along
+with pyTIDES. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import math

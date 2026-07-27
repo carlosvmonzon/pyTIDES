@@ -7,7 +7,7 @@ name = "exotides"
 version = "0.1.1"
 description = "Python port of the TIDES Taylor-integration N-body library (Abad et al.), for hierarchical exoplanet systems up to 5 bodies."
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "GPL-3.0-or-later" }
 authors = [
     { name = "Carlos Vázquez Monzón", email = "cvazquez@uloyola.es" },
 ]
@@ -23,7 +23,7 @@ keywords = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Topic :: Scientific/Engineering :: Astronomy",
