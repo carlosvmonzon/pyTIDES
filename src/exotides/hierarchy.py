@@ -533,13 +533,16 @@ class HierarchicalSystemTemplates:
         -------
         v_init, p_init, nodes, solver
         """
+        template = cls.get(key)
+        print(f"Hierarchical system: {template.key} ({template.title})")
+
         if physics == "pn" and speed_of_light is None:
             raise ValueError("physics='pn' requires speed_of_light")
         if physics == "pn":
             # Same fallback as build() below -- so the pair labels in this
             # warning match the body names actually used in the system
             # (and in any figure legend), instead of generic "body N".
-            warn_names = names if names is not None else cls.get(key).default_names
+            warn_names = names if names is not None else template.default_names
             warn_pn_quality(masses, names=warn_names, system_label=key, stacklevel=4)
 
         v_init, p_init, nodes = cls.initial_conditions(

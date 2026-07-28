@@ -37,18 +37,26 @@ You should have received a copy of the GNU General Public License along
 with pyTIDES. If not, see <https://www.gnu.org/licenses/>.
 """
 
-import logging
-
 import numpy as np
 from .core import mul_mc, pow_mc_c, HAS_GMPY2, gmpy2, vector_norm
 from .relativity import has_pn_params, pn_speed_of_light
 from . import _fast_nbody
 
-# Library code logs, it doesn't print: an unconfigured logger is silent by
-# default (Python's logging convention), so this never writes to stdout
-# unless the calling application opts in, e.g. via
-# ``logging.basicConfig(level=logging.INFO)``.
-logger = logging.getLogger(__name__)
+# Tracks which (N, is_mpfr, use_numba) combinations _report_nbody_setup has
+# already printed -- nbody_mincseries/nbody_pn_mincseries are invoked once
+# per Taylor order per step, so printing on every call would flood stdout.
+_reported_nbody_setups = set()
+
+
+def _report_nbody_setup(n_bodies, is_mpfr, use_numba):
+    """Print the N-body problem setup once per distinct combination."""
+    settings = (n_bodies, is_mpfr, use_numba)
+    if settings in _reported_nbody_setups:
+        return
+    _reported_nbody_setups.add(settings)
+    precision = "mpfr (arbitrary precision)" if is_mpfr else "float64 (double precision)"
+    backend = "numba" if use_numba else "pure Python"
+    print(f"N-body problem: {n_bodies} added bodies, precision={precision}, backend={backend}")
 
 
 # Per-pair auxiliary Taylor series slots: dx,dy,dz,r2,r3inv (Newtonian,
@@ -95,9 +103,6 @@ def _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=False):
     """
     VAR = len(v)
     N   = VAR // 6
-    if not hasattr(_nbody_mincseries_core, "_last_reported_n") or _nbody_mincseries_core._last_reported_n != N:
-        logger.info("%d bodies involved", N)
-        _nbody_mincseries_core._last_reported_n = N
     P   = N * (N - 1) // 2
     TT  = VAR + _PAIR_SLOTS * P
 
@@ -343,15 +348,7 @@ def nbody_mincseries(t, v, p, XVAR, ORDER, MO, use_numba=None):
         if not _fast_nbody.HAS_NUMBA:
             raise ValueError("use_numba=True requested but numba is not installed")
 
-    # Reporta precisión/backend una sola vez por combinación (igual que el
-    # aviso de nº de cuerpos en _nbody_mincseries_core), no en cada llamada
-    # -- este generador se invoca una vez por orden de Taylor por paso.
-    settings = (is_mpfr, use_numba)
-    if getattr(nbody_mincseries, "_last_reported_settings", None) != settings:
-        precision = "mpfr (arbitrary precision)" if is_mpfr else "float64 (double precision)"
-        backend = "numba" if use_numba else "pure Python"
-        logger.info("precision=%s, backend=%s", precision, backend)
-        nbody_mincseries._last_reported_settings = settings
+    _report_nbody_setup(len(v) // 6, is_mpfr, use_numba)
 
     if use_numba:
         return _fast_nbody.run_fast_newtonian(t, v, p, XVAR, ORDER, MO)
@@ -367,6 +364,8 @@ def nbody_pn_mincseries(t, v, p, XVAR, ORDER, MO):
     Parameter layout:
         p = [G, m0, ..., mN-1, c]
     """
+    is_mpfr = HAS_GMPY2 and isinstance(v[0], gmpy2.mpfr)
+    _report_nbody_setup(len(v) // 6, is_mpfr, False)
     return _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=True)
 
 
