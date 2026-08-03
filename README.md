@@ -2,13 +2,13 @@
 
 A high-precision, variable-stepsize, variable-order N-body solver using the **TIDES**
 (Taylor Integration of Differential EquationS) Taylor-series method (Abad et al. 2012), with a
-Python-first package built around **one specific problem**: hierarchical exoplanet systems --
-star-planet-moon, binary and triple stars with S-type/P-type planets, up to 5 bodies -- built
+Python-first package built around **one specific problem**: hierarchical exoplanet systems
+(star-planet-moon, binary and triple stars with S-type/P-type planets, up to 5 bodies), built
 from named, ready-to-use templates instead of hand-rolled initial conditions.
 
 **This is deliberately not a general-purpose N-body package.** The Taylor-series integrator
 itself (`src/exotides/core.py`'s `TidesSolver`) and the gravitational N-body generator it drives
-(`src/exotides/nbody.py`'s `nbody_mincseries`) are generic -- no built-in notion of "hierarchy"
+(`src/exotides/nbody.py`'s `nbody_mincseries`) are generic: no built-in notion of "hierarchy"
 and no hard cap on the number of bodies. What's actually scoped to hierarchies is everything
 built *on top* of that engine: the template catalog (`src/exotides/hierarchy.py`), the
 Jacobi-ordering/interior-reference convention used to turn a tree of Keplerian elements into
@@ -21,7 +21,7 @@ literature and lineage.
 
 It supports **double precision** and **arbitrary (multiple) precision** (via `gmpy2`),
 an optional **Numba**-accelerated fast path, and a **1PN relativistic correction** for
-apsidal precession -- all through the same `HierarchicalSystemTemplates` API.
+apsidal precession, all through the same `HierarchicalSystemTemplates` API.
 
 ---
 
@@ -30,30 +30,30 @@ apsidal precession -- all through the same `HierarchicalSystemTemplates` API.
 ```text
 pyTIDES/                        # this package's root (pyproject.toml lives here)
 ├── pyproject.toml              # Package manifest (src layout; deps + mpfr/fast/test/dev extras; ruff/pytest config)
-├── MANIFEST.in                  # sdist-only inclusions (LICENSE, COPYING, CHANGELOG.md, figures/hierarchy_diagrams/*.png)
-├── LICENSE                      # GPLv3-or-later (full text; identical to COPYING)
-├── COPYING                      # GPLv3-or-later (full text; same convention as the original C TIDES)
-├── CHANGELOG.md                 # Keep a Changelog-style release notes
-├── .pre-commit-config.yaml      # ruff check, run on commit (see Development below)
+├── MANIFEST.in                 # sdist-only inclusions (LICENSE, COPYING, CHANGELOG.md, figures/hierarchy_diagrams/*.png)
+├── LICENSE                     # GPLv3-or-later (full text; identical to COPYING)
+├── COPYING                     # GPLv3-or-later (full text; same convention as the original C TIDES)
+├── CHANGELOG.md                # Keep a Changelog-style release notes
+├── .pre-commit-config.yaml     # ruff check, run on commit (see Development below)
 ├── .github/
 │   └── workflows/tests.yml     # CI: ruff lint + pytest matrix (Ubuntu/Windows x Python)
 ├── src/
-│   └── exotides/                 # The installable package -- `import exotides`
-│       ├── core.py                   # TidesSolver + Taylor-series algebra (mul_mc, pow_mc_c, ...)
-│       ├── nbody.py                   # Newtonian N-body Taylor-series generator, state pack/unpack
-│       ├── _fast_nbody.py             # Optional Numba-JIT accelerated Newtonian core
-│       ├── relativity.py              # 1PN pairwise "dominant mass" relativistic correction
-│       ├── orbital.py                 # Keplerian <-> Cartesian conversion + HierarchicalSystem builder
-│       ├── hierarchy.py               # HierarchicalSystemTemplates catalog (22 named configurations)
-│       ├── events.py                  # Zero-crossing/collision event detection during integration
-│       └── plotting.py                # trajectory (2D/3D) / orbital-element / Newtonian-vs-PN plots
+│   └── exotides/               # The installable package (`import exotides`)
+│       ├── core.py             # TidesSolver + Taylor-series algebra (mul_mc, pow_mc_c, ...)
+│       ├── nbody.py            # Newtonian N-body Taylor-series generator, state pack/unpack
+│       ├── _fast_nbody.py      # Optional Numba-JIT accelerated Newtonian core
+│       ├── relativity.py       # 1PN pairwise "dominant mass" relativistic correction
+│       ├── orbital.py          # Keplerian <-> Cartesian conversion + HierarchicalSystem builder
+│       ├── hierarchy.py        # HierarchicalSystemTemplates catalog (22 named configurations)
+│       ├── events.py           # Zero-crossing/collision event detection during integration
+│       └── plotting.py         # trajectory (2D/3D) / orbital-element / Newtonian-vs-PN plots
 ├── tests/
-│   ├── helpers/                  # Test-only support code (system builders, orbital analysis, ...) --
-│   │                              # never imported by exotides itself, so it isn't installed/shipped
-│   └── test_*.py                 # pytest-discoverable + each runnable directly (see Verification Suite)
+│   ├── helpers/                # Test-only support code (system builders, orbital analysis, ...);
+│   │                           # never imported by exotides itself, so it isn't installed/shipped
+│   └── test_*.py               # pytest-discoverable + each runnable directly (see Verification Suite)
 ├── docs/
 │   └── design-notes.md         # Lineage, comparisons (heyoka, REBOUND, kozai), honest limitations
-├── figures/                     # Plots/animations from the verification suite (created automatically) --
+├── figures/                    # Plots/animations from the verification suite (created automatically)
 │   └── hierarchy_diagrams/     # Committed exception: the catalog diagrams below, tracked in git
 └── README.md
 ```
@@ -75,24 +75,25 @@ pip install "exotides[mpfr]"   # + gmpy2, arbitrary-precision ("mpfr") integrati
 pip install "exotides[fast]"   # + numba, faster Newtonian integration (see Features Guide §5)
 ```
 
-If you want to develop or contribute -- run the test suite, use the scripts under `tests/`,
-or edit the source and see changes immediately -- install from source in editable mode instead,
+If you want to develop or contribute (run the test suite, use the scripts under `tests/`,
+or edit the source and see changes immediately), install from source in editable mode instead,
 from `pyTIDES/` (this package's root):
 ```bash
 pip install -e .
-pip install -e ".[test]"   # + pytest, pytest-cov -- see Running the Verification Suite
-pip install -e ".[dev]"    # + ruff, pre-commit -- see Development below
+pip install -e ".[test]"   # + pytest, pytest-cov (see Running the Verification Suite)
+pip install -e ".[dev]"    # + ruff, pre-commit (see Development below)
 pip install -e ".[mpfr,fast,test,dev]"   # everything
 ```
 
-No C compiler is required for any of the above -- the whole Python-side integrator (including
+No C compiler is required for any of the above: the whole Python-side integrator (including
 the Numba-accelerated path) is pure Python/JIT, with no build step.
 
 ### Development
 
-Linting is `ruff check` (config in `pyproject.toml`'s `[tool.ruff]`), deliberately lint-only --
-no auto-formatter, since some modules use intentional manual alignment (see the config's own
-comment for why). After `pip install -e ".[dev]"`, set up the pre-commit hook once per clone:
+Linting is `ruff check` (config in `pyproject.toml`'s `[tool.ruff]`), and it is deliberately
+lint-only: no auto-formatter, since some modules use intentional manual alignment (see the
+config's own comment for why). After `pip install -e ".[dev]"`, set up the pre-commit hook once
+per clone:
 ```bash
 pre-commit install
 ```
@@ -104,7 +105,7 @@ runs the same lint check plus the full pytest matrix on every push/PR.
 ## Features Guide
 
 ### 1. Double and Multiple Precision
-Initial conditions (`HierarchicalSystem`, `pack_state`, ...) are always built as plain `float64` --
+Initial conditions (`HierarchicalSystem`, `pack_state`, ...) are always built as plain `float64`;
 precision is chosen in exactly one place, `TidesSolver(is_mpfr=...)`:
 - `is_mpfr=None` (default): auto-detects from whether `v_init`/`p_init` passed to `solve()` already
   hold `gmpy2.mpfr` values.
@@ -116,7 +117,7 @@ Set the target precision with `gmpy2.get_context().precision = BITS` before solv
 - **Multiple precision**: achieves energy conservation to $10^{-40}$ or smaller.
 
 `HierarchicalSystemTemplates.solve_nbody`/`make_nbody_solver` (below) have no `is_mpfr` parameter of
-their own -- `TidesSolver` is genuinely the only place it lives, so for arbitrary precision with a
+their own; `TidesSolver` really is the only place it lives, so for arbitrary precision with a
 hierarchy template, set it on the solver `make_nbody_solver` returns before calling `.solve()`:
 ```python
 v_init, p_init, nodes = HierarchicalSystemTemplates.initial_conditions("star_planet", masses, elements=elements)
@@ -131,7 +132,7 @@ t_hist, states = solver.solve(v_init, p_init, tini=0.0, tend=13.0, dt=0.02)
 - `unpack_state(flat_state)`: flat state (or trajectory, shape $(steps, 6N)$) -> position/velocity arrays.
 
 `src/exotides/core.py` provides the mpfr/float64-aware helpers shared by every `mincseries_func`
-(not just N-body): `to_mpfr` (scalar), `as_float64`/`vector_norm` (arrays -- for display/analysis
+(not just N-body): `to_mpfr` (scalar), `as_float64`/`vector_norm` (arrays, for display/analysis
 code downstream of an `is_mpfr=True` integration; see their docstrings).
 
 ### 3. Keplerian Elements & Hierarchical System Builder
@@ -166,24 +167,24 @@ t_hist, states, p_init, nodes = HierarchicalSystemTemplates.solve_nbody(
     tend=100.0, dt=0.1, physics="pn", speed_of_light=1.0e4,
 )
 ```
-`physics="pn"` works with *any* catalog template, not just a bare two-body system -- including
+`physics="pn"` works with *any* catalog template, not just a bare two-body system, including
 comparable-mass stellar binaries/triples (`exotides.plotting.plot_pn_comparison` computes the correct
 two-body/Jacobi reference mass in either case, not just a "light test particle" approximation).
 It's a simplified, reduced two-body-per-pair approximation (not a full Einstein-Infeld-Hoffmann
 treatment), appropriate for the hierarchical star/planet/moon regime this package targets.
 
 `physics="pn"` also checks every interacting pair's mass ratio (`exotides.relativity.pn_pair_quality`)
-and raises a `UserWarning` (naming the worst-quality pair) whenever that approximation is a poor fit --
-e.g. a comparable-mass binary star, where "dominant mass" stops being a reasonable label for either
-component. Silent for genuinely hierarchical mass ratios (star-planet, planet-moon, ...).
+and raises a `UserWarning` (naming the worst-quality pair) whenever that approximation is a poor fit,
+for example a comparable-mass binary star, where "dominant mass" stops being a reasonable label for
+either component. Silent for genuinely hierarchical mass ratios (star-planet, planet-moon, ...).
 
 ### 5. Optional Numba Acceleration
 When `numba` is installed, `nbody_mincseries` (the plain-Newtonian generator) transparently
-dispatches to a JIT-compiled float64 core (`src/exotides/_fast_nbody.py`) -- bit-identical results,
+dispatches to a JIT-compiled float64 core (`src/exotides/_fast_nbody.py`): bit-identical results,
 and faster once warmed up. No code changes needed; falls back to the pure-Python core
 automatically if `numba` isn't installed, or for arbitrary-precision (`gmpy2.mpfr`) runs.
 
-The speedup is not a flat number -- it grows with the number of bodies `N`, since the
+The speedup is not a flat number: it grows with the number of bodies `N`, since the
 per-order force loop is O(N^2) (every pair) and Numba removes Python-level dispatch overhead
 that matters proportionally less as that loop dominates. `tests/test_fast_nbody.py` measures
 this directly rather than quoting one number from one small system; a representative run:
@@ -204,8 +205,8 @@ this directly rather than quoting one number from one small system; a representa
 Ported from the original C TIDES library's event-detection subsystem (`doubEVENTS.c`/
 `mpfrEVENTS.c`), never previously part of pyTIDES. `TidesSolver.solve(..., events=[...])` watches
 for zero-crossings of any scalar function of the state during integration, locating each crossing
-by bisecting on the *dense Taylor polynomial already computed for the current adaptive step* --
-no re-integration or step shrinking needed, exactly the mechanism the C library's
+by bisecting on the *dense Taylor polynomial already computed for the current adaptive step*, so
+no re-integration or step shrinking is needed. This is exactly the mechanism the C library's
 `dp_tides_find_zeros` uses:
 ```python
 from exotides.core import TidesSolver
@@ -217,32 +218,32 @@ t_hist, states = solver.solve(v_init, p_init, tini=0.0, tend=100.0, dt=0.1, even
 
 solver.last_events  # [{"time": ..., "state": ..., "name": "collision(body0, body1)", "terminal": True}]
 ```
-An event can be `terminal=True` (integration stops exactly at the crossing -- the default,
+An event can be `terminal=True` (integration stops exactly at the crossing; this is the default,
 appropriate for `collision_event`) or `terminal=False` (recorded in `last_events` without
 stopping, e.g. to log periapsis passages or node crossings). Collisions are always terminal:
 since a hierarchy template (see below) is a *fixed* tree topology, merging two bodies mid-run
 would invalidate the structure the rest of the package assumes, so integration simply stops and
-hands the exact contact time/state back to the caller to decide what to do next -- see
+hands the exact contact time/state back to the caller to decide what to do next. See
 [`docs/design-notes.md`](docs/design-notes.md) §3 for how this compares to other N-body codes'
 collision handling.
 
 ### 7. Stepsize Controller Choice
 `TidesSolver(stepsize_controller=...)` selects which stepsize-estimate formula `get_step` uses
-(`src/exotides/core.py`) -- both share every other ingredient (last-nonzero-coefficient search,
+(`src/exotides/core.py`). Both share every other ingredient (last-nonzero-coefficient search,
 `[rmin, rmax]`-relative step clamping, safety factor), so the two isolate exactly this one
 difference:
 - `"pytides"` (default): pairs each retained Taylor coefficient with the tolerance exponent of the
-  *next*, untruncated order -- the formula pyTIDES actually ships.
+  *next*, untruncated order (the formula pyTIDES actually ships).
 - `"original"`: Abad et al. (2012, Algorithm 924)'s own same-index pairing, where a coefficient at
   order *k* contributes `(TOL/|y^[k]|)^(1/k)`.
 
 They are not algebraically equivalent, and the difference isn't just academic: on an isolated
 two-body Kepler orbit, at fixed requested tolerance, `"pytides"` takes ~22-23% fewer steps than
-`"original"`, but its achieved accuracy is measurably worse -- 14.8x worse at `e=0.0`/`0.6`, and
+`"original"`, but its achieved accuracy is measurably worse, 14.8x worse at `e=0.0`/`0.6` and
 232x worse at `e=0.9` (where curvature concentrates hardest at pericenter). That eccentricity
 trend is demonstrated only for this isolated two-body case; whether it generalizes to systems with
 additional, disparate dynamical timescales is an open question. What isn't in question is the
-direction of the trade-off itself -- cheaper, never more accurate -- at every eccentricity tested.
+direction of the trade-off itself, cheaper but never more accurate, at every eccentricity tested.
 See `experiments/exp8_stepsize_controller.py` for the full comparison (table + figure) and the
 paper's stepsize-controller-comparison section for the complete discussion. `solver.last_run_stats`
 (set after every `solve()` call) exposes `accepted_steps`/`rejected_steps`/`mean_order`/
@@ -259,7 +260,7 @@ not just the bare `TidesSolver` constructor.
 Instead of building every `HierarchicalSystem` by hand, `src/exotides/hierarchy.py` ships a
 catalog of 22 semantic, ready-to-use templates (`HierarchicalSystemTemplates`), from a
 single star up to 5-body systems (at most 3 stars, 2 planets, 1 moon). Each template
-is a fixed tree shape (who orbits whom) — you only supply masses and Keplerian
+is a fixed tree shape (who orbits whom), so you only supply masses and Keplerian
 elements:
 
 ```python
@@ -272,14 +273,14 @@ t_hist, states, p_init, nodes = HierarchicalSystemTemplates.solve_nbody(
 )
 ```
 
-Planets are marked **S** (circumstellar — orbits one star) or **P** (circumbinary —
+Planets are marked **S** (circumstellar, orbits one star) or **P** (circumbinary,
 orbits a binary's barycenter). Below, each key's diagram is a schematic (not to
 scale, semi-major axes are log-compressed for legibility) where dot size encodes
-relative mass and distance from its parent encodes relative orbital separation —
+relative mass and distance from its parent encodes relative orbital separation:
 <span style="color:#e8a33d">●</span> star, <span style="color:#4C78A8">●</span> planet,
 <span style="color:#8a8a8a">●</span> moon. The dashed connector for each body doesn't
-necessarily run to its parent's own dot: it runs to the mass-weighted **barycenter**
-(marked "+") of everything that body's orbit is actually anchored to — which can be a
+necessarily run to its parent's own dot; it runs to the mass-weighted **barycenter**
+(marked "+") of everything that body's orbit is actually anchored to, which can be a
 combination of the parent, closer siblings, and the parent's whole ancestor chain
 (see the note below). These diagrams are generated by feeding those compressed
 semi-major axes into the real `HierarchicalSystem` machinery, so they show exactly
@@ -401,15 +402,15 @@ Two planets orbit two different stellar components.
 ![triple_star_two_s_planets](figures/hierarchy_diagrams/triple_star_two_s_planets.png)
 
 > **Jacobi-ordering convention.** Every body's orbit is anchored to the combined mass
-> *and* combined barycenter of everything interior to it — its parent, any sibling
+> *and* combined barycenter of everything interior to it: its parent, any sibling
 > that orbits closer in (smaller semi-major axis), and the parent's *entire* ancestor
-> chain, each contributing in turn — not just its immediate parent in isolation. A
+> chain, each contributing in turn, rather than just its immediate parent in isolation. A
 > sibling or ancestor link that's wider than the body's own orbit is excluded, treated
 > as an external perturber instead. So in `binary_s_planet_primary`, Star B's orbit
 > correctly accounts for Planet A's mass (negligible here, but not in general), while
 > Planet A's own orbit correctly ignores the far-away Star B. And in
 > `triple_star_chain`, Star C's orbit correctly accounts for *both* Star A and Star B
-> combined — not just Star B, its immediate parent — which is why the diagrams above
+> combined, not just Star B, its immediate parent, which is why the diagrams above
 > can use equal-mass twins for the inner pair instead of a lopsided ratio: a real
 > hierarchical triple with two comparable-mass inner stars is now handled correctly.
 > Both the diagrams above and `HierarchicalSystem._resolve()`/`_interior_reference()`
@@ -432,10 +433,10 @@ py -m pytest
 ```
 
 (`pytest` alone also works if the command is on your `PATH`.) This discovers and runs all 23
-tests under `pyTIDES/tests/` and prints a pass/fail summary -- no arguments, no need to name
-individual files. It's the quickest way to confirm the whole verification suite still passes,
-e.g. after a change. It does **not** generate any plots/animations: every test defaults to
-skipping figure output under pytest for speed (see the next section to actually produce them).
+tests under `pyTIDES/tests/` and prints a pass/fail summary, with no arguments and no need to
+name individual files. It's the quickest way to confirm the whole verification suite still
+passes, e.g. after a change. It does **not** generate any plots/animations: every test defaults
+to skipping figure output under pytest for speed (see the next section to actually produce them).
 
 Add `--cov=exotides --cov-report=term-missing` to also print a coverage report (requires
 `pytest-cov`, included in the `test` extra).
@@ -443,7 +444,7 @@ Add `--cov=exotides --cov-report=term-missing` to also print a coverage report (
 ### Running scripts directly (also generates plots/animations)
 
 Requires the package installed first (`pip install -e .` from `pyTIDES/`, see Getting Started
-above) -- the scripts import `exotides` as a regular installed package, no `sys.path`
+above). The scripts import `exotides` as a regular installed package, with no `sys.path`
 manipulation involved. Each script in `pyTIDES/tests/` is also runnable directly, and this time
 prints/asserts its own verification results *and* saves the plots/animations to `figures/`:
 
@@ -472,7 +473,7 @@ Plots and animations are saved to `pyTIDES/figures/` (created automatically).
 [`docs/design-notes.md`](docs/design-notes.md) collects everything that doesn't belong in this
 README: the TIDES method's lineage (the original C/Fortran/Mathematica implementation, why no
 official Python port exists), a precise, code-level accounting of what "not general-purpose"
-means here, comparisons to other Taylor-series/N-body codes -- heyoka, REBOUND, and `kozai` --
+means here, comparisons to other Taylor-series/N-body codes (heyoka, REBOUND, and `kozai`),
 and, in its final section, two concrete future-work directions given the genericity of
 `TidesSolver`: supplying `kozai`-style secularly-averaged (orbit-averaged) equations as an
 alternative right-hand side, and adding dissipative tidal forces to the present Newtonian
@@ -485,9 +486,9 @@ is why it drives all the way to a terminal collision instead of an arrested cycl
 
 - Abad, A., Barrio, R., Blesa, F., & Rodríguez, M. (2012). "Algorithm 924: TIDES, a Taylor
   Series Integrator for Differential EquationS." *ACM Transactions on Mathematical
-  Software*, 39(1), Article 5. -- the method this package reimplements in pure Python (see
-  [`docs/design-notes.md`](docs/design-notes.md) for why no official Python port of the
-  original C/Fortran/Mathematica TIDES exists).
+  Software*, 39(1), Article 5. This is the method this package reimplements in pure Python;
+  see [`docs/design-notes.md`](docs/design-notes.md) for why no official Python port of the
+  original C/Fortran/Mathematica TIDES exists.
 
 See [`docs/design-notes.md`](docs/design-notes.md) for further references (REBOUND, heyoka,
 `kozai`, Omnisode/`sode`) used in the comparisons there.
