@@ -259,7 +259,6 @@ class HierarchicalSystem:
             self.children    = []
             self.pos         = None
             self.vel         = None
-            self.sys_mass    = mass        # total mass of this body + descendants
 
     # ------------------------------------------------------------------
     # Construction
@@ -344,13 +343,6 @@ class HierarchicalSystem:
                                  "Add bodies in hierarchical order.")
             parent = self.nodes[parent_name]
             parent.children.append(node)
-
-            # Propaga la masa total del subsistema hacia arriba. Esa masa se
-            # usa después para colocar baricentros correctamente.
-            curr = parent
-            while curr is not None:
-                curr.sys_mass += node.sys_mass
-                curr = self.nodes.get(curr.parent_name)
 
     # ------------------------------------------------------------------
     # Coordinate resolution
@@ -460,7 +452,18 @@ class HierarchicalSystem:
 
             central_mass, central_pos, central_vel = self._interior_reference(node, child)
 
-            mu = self.G * (central_mass + child.sys_mass)
+            # child.mass here, not a subtree total: child.pos/child.vel (assigned right
+            # below) are child's own individual position/velocity, not a subtree
+            # barycenter, so the two-body mu that places them must match -- only child's
+            # own mass, plus everything already interior to it. child's own descendants
+            # (if any) are placed afterwards, in the recursive _resolve(child) call below,
+            # using child's now-correct position as part of *their* interior reference.
+            # Using child's full descendant mass here used to inflate mu whenever a
+            # later-added descendant's own orbit was not much tighter than child's --
+            # e.g. a wide tertiary star chained under one component of a closer inner
+            # binary corrupted that inner binary's own orbit, sometimes severely (mass-
+            # dependent). See CHANGELOG.md.
+            mu = self.G * (central_mass + child.mass)
             r_rel, v_rel = keplerian_to_cartesian(
                 el["a"], el["e"], el["i"], el["lan"], el["aop"], el["ta"], mu
             )

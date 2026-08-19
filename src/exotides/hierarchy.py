@@ -761,15 +761,6 @@ class HierarchicalSystemTemplates:
         return False
 
     @staticmethod
-    def _subtree_mass(template, masses, idx):
-        """Total mass of ``idx`` and all its descendants (mirrors ``Node.sys_mass``)."""
-        total = masses[idx]
-        for child_idx, parent_idx in enumerate(template.parents):
-            if parent_idx == idx:
-                total += HierarchicalSystemTemplates._subtree_mass(template, masses, child_idx)
-        return total
-
-    @staticmethod
     def _default_semi_major_axis(template, idx, base_a):
         """The ``a`` that ``default_elements`` assigns to body ``idx`` (order-independent)."""
         body_type = template.body_types[idx]
@@ -799,7 +790,7 @@ class HierarchicalSystemTemplates:
         # excluded.
         planet_a = planet_node.elements["a"]
         central_mass = star_node.mass + sum(
-            sibling.sys_mass for sibling in star_node.children
+            sibling.mass for sibling in star_node.children
             if sibling is not planet_node and sibling.elements["a"] < planet_a
         )
 
@@ -877,7 +868,7 @@ class HierarchicalSystemTemplates:
                 # (smaller "a") -- e.g. the other star in a binary, for a
                 # wide P-type planet; a narrower S-type planet excludes it.
                 central_mass = masses[star_idx] + sum(
-                    cls._subtree_mass(template, masses, sibling_idx)
+                    masses[sibling_idx]
                     for sibling_idx, parent_idx in enumerate(template.parents)
                     if parent_idx == star_idx
                     and sibling_idx != planet_idx

@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `HierarchicalSystem._resolve()` computed each body's placement using
+  `mu = G * (central_mass + child.sys_mass)`, where `child.sys_mass` was that
+  body's own mass *plus every descendant added under it*, unconditionally.
+  That's the right mass to use when a child's descendants are genuinely
+  nested far tighter than the child's own orbit (a moon under a planet, a
+  planet under a star) -- their mass is negligible relative to what they're
+  chained under, so the approximation is harmless. It's wrong whenever a
+  later-added descendant's own orbit is *not* much tighter than the level
+  being resolved and its mass isn't negligible either: `child.pos`/`child.vel`
+  are assigned as that body's own individual position/velocity, not a
+  subtree barycenter, so the two-body `mu` used to place them must match --
+  only `child.mass`, not its whole subtree.
+  This was silent for every template except the five "nested triple star"
+  ones (`triple_star_chain`, `triple_star_s_planet`, `triple_star_s_planet_c`,
+  `triple_star_s_planet_moon`, `triple_star_two_s_planets`), which all chain
+  Star C's parent to Star B: for a real hierarchical triple, Star C's own
+  orbit is *wider* than the inner pair's, and its mass is typically
+  comparable to (not negligible next to) the inner pair's combined mass --
+  exactly the conditions that make the bug severe rather than negligible.
+  Concretely, for `m1=1.1`, `m2=0.9`, `m3=1.0 M_sun` (all in solar masses),
+  `a_in=10`, `e_in=0.3` au, `a_out=60`, `e_out=0.2` au: Star B's *actual*
+  osculating orbit around Star A came out as `a=140 au, e=0.95` instead of
+  the requested `(10, 0.3)` -- not a marginal error, a completely different,
+  far wider and more eccentric ellipse. Every quantity derived from that
+  initial condition (apparent "disintegration" of the inner binary over a
+  few thousand years, at any `a_out`, independent of the outer star's mass
+  scaling behavior) was consequently spurious. `Star C`'s own orbit (anchored
+  via `_interior_reference`, unaffected by this bug) was already correct in
+  every case checked.
+  Root cause fixed in `HierarchicalSystem._resolve()` (`child.mass` instead
+  of `child.sys_mass`); the now-unused `Node.sys_mass` field and its
+  propagation logic in `add_body()` were removed, along with the two other
+  call sites that mirrored the same (buggy) convention for consistency:
+  `HierarchicalSystemTemplates._check_moon_hill_stability()`'s Hill-radius
+  estimate and `default_elements()`'s automatic moon-semi-major-axis pick
+  (both now use a sibling's own `mass`, not its subtree total, matching the
+  fix). No template's `parents` topology needed to change -- verified with a
+  from-scratch audit of all 22 catalog templates, comparing each body's
+  actual osculating elements (computed independently via
+  `cartesian_to_keplerian`, not by trusting the generator) against the
+  elements it was asked for.
+  The lopsided (`~1e-3`) inner-pair mass ratio used for the `triple_star_*`
+  dynamical examples in `tests/test_hierarchy.py` predates this fix and is
+  no longer required for correctness; kept as-is for now since it doesn't
+  affect what those examples verify.
+
 ## [0.1.1] - 2026-07-27
 
 ### Fixed
