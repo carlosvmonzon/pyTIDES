@@ -40,6 +40,7 @@ with pyTIDES. If not, see <https://www.gnu.org/licenses/>.
 import numpy as np
 from .core import mul_mc, pow_mc_c, HAS_GMPY2, gmpy2, vector_norm
 from .relativity import has_pn_params, pn_speed_of_light
+from .j2 import has_j2_params, read_j2_params
 from . import _fast_nbody
 
 # Tracks which (N, is_mpfr, use_numba) combinations _report_nbody_setup has
@@ -61,17 +62,19 @@ def _report_nbody_setup(n_bodies, is_mpfr, use_numba):
 
 # Per-pair auxiliary Taylor series slots: dx,dy,dz,r2,r3inv (Newtonian,
 # always used) plus dvx,dvy,dvz,rinv,rv_dot,D,E,C (1PN-only, see
-# _nbody_mincseries_core's PN block and exotides/relativity.py). Always
-# reserved regardless of include_pn so the shared static buffer never needs
-# resizing when switching between Newtonian/PN calls in the same process.
-_PAIR_SLOTS = 13
+# _nbody_mincseries_core's PN block and exotides/relativity.py) plus
+# r2inv,r5inv,zz,zzr2,bracket_x,bracket_z,gx,gy,gz (J2-only, one specific
+# pair, see exotides/j2.py). Always reserved regardless of include_pn/
+# include_j2 so the shared static buffer never needs resizing when
+# switching between Newtonian/PN/J2 calls in the same process.
+_PAIR_SLOTS = 22
 
 
 # ---------------------------------------------------------------------------
 # TIDES N-body series generator
 # ---------------------------------------------------------------------------
 
-def _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=False):
+def _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=False, include_j2=False):
     """
     TIDES-compatible Taylor-series generator for the N-body problem.
 
@@ -88,9 +91,12 @@ def _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=False):
         Current time.
     v : array-like, length 6*N
         Current state.
-    p : array-like, length 1+N (+1 if include_pn)
+    p : array-like, length 1+N (+1 if include_pn) (+4 if include_j2)
         Parameters: p[0]=G, p[1..N]=masses, plus an optional trailing speed
-        of light (exotides/relativity.py) if include_pn.
+        of light (exotides/relativity.py) if include_pn, plus an optional
+        trailing (heavy_idx, light_idx, J2, Re) block (exotides/j2.py) if
+        include_j2. Both extras can be present at once (PN block first,
+        then J2 block) provided the caller builds p in that order.
     XVAR : ndarray, shape (MO+1, nvar+1)
         Output array filled with Taylor coefficients.
     ORDER : int
@@ -100,11 +106,22 @@ def _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=False):
     include_pn : bool
         If True, add the pairwise "dominant mass" 1PN correction (see
         exotides/relativity.py) to the lighter body of each pair.
+    include_j2 : bool
+        If True, add the continuous J2 (oblateness) correction (see
+        exotides/j2.py) to one specific (heavy, light) pair.
     """
     VAR = len(v)
     N   = VAR // 6
     P   = N * (N - 1) // 2
     TT  = VAR + _PAIR_SLOTS * P
+
+    if include_j2:
+        if not has_j2_params(p, N):
+            raise ValueError(
+                "include_j2=True requires p to carry the trailing (heavy_idx, light_idx, "
+                "J2, Re) block -- see exotides.j2.append_j2_params"
+            )
+        j2_heavy_idx, j2_light_idx, j2_coefficient, j2_radius = read_j2_params(p, N)
 
     stride = MO + 1
 
@@ -230,6 +247,32 @@ def _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=False):
                     u_e[i] = mul_mc(u_d, u_r3inv, i)
                     u_c[i] = mul_mc(u_rvd, u_r3inv, i)
 
+                if include_j2 and j == j2_heavy_idx and k == j2_light_idx:
+                    # J2 auxiliary series (exotides/j2.py): r^-2, r^-5, z^2,
+                    # z^2/r^2, y los "corchetes" (1-5z^2/r^2) y (3-5z^2/r^2)
+                    # de la aceleración de achatamiento -- dx,dy,dz aquí ya
+                    # son (ligero - pesado) porque j2_heavy_idx < j2_light_idx
+                    # está garantizado por append_j2_params.
+                    u_r2inv = XX_flat[(base + 14) * stride : (base + 15) * stride]
+                    u_r5inv = XX_flat[(base + 15) * stride : (base + 16) * stride]
+                    u_zz    = XX_flat[(base + 16) * stride : (base + 17) * stride]
+                    u_zzr2  = XX_flat[(base + 17) * stride : (base + 18) * stride]
+                    u_bx    = XX_flat[(base + 18) * stride : (base + 19) * stride]
+                    u_bz    = XX_flat[(base + 19) * stride : (base + 20) * stride]
+                    u_gx    = XX_flat[(base + 20) * stride : (base + 21) * stride]
+                    u_gy    = XX_flat[(base + 21) * stride : (base + 22) * stride]
+                    u_gz    = XX_flat[(base + 22) * stride : (base + 23) * stride]
+
+                    u_r2inv[i] = pow_mc_c(u_r2, -1.0, u_r2inv, i)
+                    u_r5inv[i] = pow_mc_c(u_r2, -2.5, u_r5inv, i)
+                    u_zz[i]    = mul_mc(u_dz, u_dz, i)
+                    u_zzr2[i]  = mul_mc(u_zz, u_r2inv, i)
+                    u_bx[i]    = (1.0 if i == 0 else 0.0) - 5.0 * u_zzr2[i]
+                    u_bz[i]    = (3.0 if i == 0 else 0.0) - 5.0 * u_zzr2[i]
+                    u_gx[i]    = mul_mc(u_dx, u_bx, i)
+                    u_gy[i]    = mul_mc(u_dy, u_bx, i)
+                    u_gz[i]    = mul_mc(u_dz, u_bz, i)
+
         # ------------------------------------------------------------------
         # 2. Suma de aceleraciones gravitatorias y escritura del siguiente
         #    coeficiente de Taylor para cada variable de estado.
@@ -290,6 +333,38 @@ def _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=False):
                     ax += pn_scale * (mul_mc(u_e, u_dx, i) + 4.0 * mul_mc(u_c, u_dvx, i))
                     ay += pn_scale * (mul_mc(u_e, u_dy, i) + 4.0 * mul_mc(u_c, u_dvy, i))
                     az += pn_scale * (mul_mc(u_e, u_dz, i) + 4.0 * mul_mc(u_c, u_dvz, i))
+
+                if include_j2 and j == j2_light_idx and k == j2_heavy_idx:
+                    # Aceleracion de achatamiento sobre el cuerpo ligero
+                    # (p.ej. la Luna) debida al pesado (p.ej. la Tierra).
+                    u_r5inv = XX_flat[(base + 15) * stride : (base + 16) * stride]
+                    u_gx    = XX_flat[(base + 20) * stride : (base + 21) * stride]
+                    u_gy    = XX_flat[(base + 21) * stride : (base + 22) * stride]
+                    u_gz    = XX_flat[(base + 22) * stride : (base + 23) * stride]
+
+                    gm_heavy = G * p[1 + j2_heavy_idx]
+                    j2_scale = -1.5 * j2_coefficient * gm_heavy * j2_radius * j2_radius
+
+                    ax += j2_scale * mul_mc(u_r5inv, u_gx, i)
+                    ay += j2_scale * mul_mc(u_r5inv, u_gy, i)
+                    az += j2_scale * mul_mc(u_r5inv, u_gz, i)
+                elif include_j2 and j == j2_heavy_idx and k == j2_light_idx:
+                    # Reaccion sobre el cuerpo pesado (conserva el momento
+                    # lineal del par; no hay par de fuerzas sobre su
+                    # orientacion, que aqui se supone fija -- ver
+                    # exotides/j2.py).
+                    u_r5inv = XX_flat[(base + 15) * stride : (base + 16) * stride]
+                    u_gx    = XX_flat[(base + 20) * stride : (base + 21) * stride]
+                    u_gy    = XX_flat[(base + 21) * stride : (base + 22) * stride]
+                    u_gz    = XX_flat[(base + 22) * stride : (base + 23) * stride]
+
+                    gm_heavy = G * p[1 + j2_heavy_idx]
+                    j2_scale = -1.5 * j2_coefficient * gm_heavy * j2_radius * j2_radius
+                    reaction_scale = -j2_scale * p[1 + j2_light_idx] / p[1 + j2_heavy_idx]
+
+                    ax += reaction_scale * mul_mc(u_r5inv, u_gx, i)
+                    ay += reaction_scale * mul_mc(u_r5inv, u_gy, i)
+                    az += reaction_scale * mul_mc(u_r5inv, u_gz, i)
 
             inext = i + 1
 
@@ -367,6 +442,31 @@ def nbody_pn_mincseries(t, v, p, XVAR, ORDER, MO):
     is_mpfr = HAS_GMPY2 and isinstance(v[0], gmpy2.mpfr)
     _report_nbody_setup(len(v) // 6, is_mpfr, False)
     return _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=True)
+
+
+def nbody_j2_mincseries(t, v, p, XVAR, ORDER, MO):
+    """
+    WORK IN PROGRESS -- DO NOT USE YET.
+
+    TIDES-compatible Taylor-series generator for N-body dynamics with a
+    continuous J2 (oblateness) correction on one (heavy, light) pair (see
+    exotides/j2.py) -- added as a genuine term in the same Taylor
+    recurrence as gravity, not as a discrete "kick" between separate
+    integration segments.
+
+    Parameter layout:
+        p = [G, m0, ..., mN-1, heavy_idx, light_idx, J2, Re]
+
+    Deliberately raises NotImplementedError: the recurrence below is
+    written but not yet validated against a known-correct J2 reference
+    (analytic nodal/apsidal precession rate, or an independent
+    reconstruction), so it must not be reachable through the public API
+    until that validation is done -- see exotides/j2.py's module docstring.
+    """
+    raise NotImplementedError(
+        "nbody_j2_mincseries is a work in progress and not yet validated -- "
+        "see exotides/j2.py"
+    )
 
 
 # ---------------------------------------------------------------------------
