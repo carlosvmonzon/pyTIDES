@@ -31,6 +31,7 @@ src/exotides/_fast_nbody.py
 src/exotides/core.py
 src/exotides/events.py
 src/exotides/hierarchy.py
+src/exotides/j2.py
 src/exotides/nbody.py
 src/exotides/orbital.py
 src/exotides/plotting.py
