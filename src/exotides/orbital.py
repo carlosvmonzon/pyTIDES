@@ -180,6 +180,14 @@ def cartesian_to_keplerian(pos, vel, mu):
             np.dot(np.cross(n_vec, e_vec), h_vec) / (n * e * h),
             np.dot(n_vec, e_vec) / (n * e),
         )
+    elif e > 0.0:
+        # Orbital plane coincides with the reference (x, y) plane (i = 0 or i = pi):
+        # the ascending node is undefined, so by convention lan = 0 and aop absorbs
+        # the full in-plane periapsis angle, measured in the direction of motion
+        # (the sign flip handles the retrograde case, where that direction is
+        # clockwise rather than counter-clockwise as seen from +z).
+        sign = 1.0 if h_vec[2] >= 0.0 else -1.0
+        aop = math.atan2(sign * e_vec[1], e_vec[0])
     else:
         aop = 0.0
 

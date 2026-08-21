@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `orbital.cartesian_to_keplerian()` silently returned `aop = 0.0` whenever the
+  orbital plane coincided with the reference (x, y) plane (`i = 0` or `i =
+  pi`), even when `e > 0` -- discarding the orbit's real in-plane periapsis
+  orientation instead of folding it into `aop` under the standard `lan = 0`
+  convention for this degenerate case. The forward direction
+  (`keplerian_to_cartesian`) was never affected: with `i = lan = 0` it
+  reduces to a single 2D rotation by `aop`, so building a system from a given
+  `aop` always placed bodies correctly. Only the inverse (Cartesian-to-elements)
+  conversion was broken, which meant `aop`/argument-of-periapsis time series
+  extracted from a coplanar integration (e.g. to study apsidal precession)
+  always came back identically zero, regardless of the actual dynamics. Fixed
+  by computing `aop` directly from the eccentricity vector's in-plane angle
+  when the ascending node is undefined, with a sign flip for the retrograde
+  (`h_z < 0`) case; see `tests/test_orbital_elements.py`.
 - `HierarchicalSystem._resolve()` computed each body's placement using
   `mu = G * (central_mass + child.sys_mass)`, where `child.sys_mass` was that
   body's own mass *plus every descendant added under it*, unconditionally.
