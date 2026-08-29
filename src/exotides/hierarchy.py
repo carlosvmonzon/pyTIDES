@@ -440,7 +440,7 @@ class HierarchicalSystemTemplates:
         minord=8,
         nordinc=5,
         defect_error_control=False,
-        stepsize_controller="pytides",
+        stepsize_controller="original",
     ):
         """
         Create a ``TidesSolver`` configured for the selected hierarchy.
@@ -519,7 +519,7 @@ class HierarchicalSystemTemplates:
         minord=8,
         nordinc=5,
         defect_error_control=False,
-        stepsize_controller="pytides",
+        stepsize_controller="original",
     ):
         """
         Shared prep for ``solve_nbody``/``solve_hierarchy``: initial
@@ -590,7 +590,7 @@ class HierarchicalSystemTemplates:
         minord=8,
         nordinc=5,
         defect_error_control=False,
-        stepsize_controller="pytides",
+        stepsize_controller="original",
     ):
         """
         Build and integrate one hierarchy as an N-body problem, in double
@@ -663,7 +663,7 @@ class HierarchicalSystemTemplates:
         minord=8,
         nordinc=5,
         defect_error_control=False,
-        stepsize_controller="pytides",
+        stepsize_controller="original",
     ):
         """
         Like ``solve_nbody`` (built from the same ``_build_nbody_run``, in

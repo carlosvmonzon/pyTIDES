@@ -463,16 +463,20 @@ class TidesSolver:
     stepsize_controller : {"pytides", "original"}
         Which stepsize-estimate formula ``get_step`` uses, both sharing the
         same last-nonzero-coefficient search, [rmin, rmax]-relative
-        clamping, and safety factor. ``"pytides"`` (default) is the
-        variant actually shipped: each retained coefficient at order k is
-        paired with the tolerance exponent of the *next*, untruncated
-        order (see the comment in ``get_step`` below). ``"original"``
-        instead reproduces Abad et al. (2012, Algorithm 924)'s own
-        same-index pairing, where a term at order k contributes
-        ``(TOL/|y^[k]|)^(1/k)``. Exists so the two controllers can be
-        run back to back on the same problem for a direct comparison
-        (steps taken, mean order, achieved error) -- see
-        ``experiments/exp8_stepsize_controller.py``.
+        clamping, and safety factor. ``"original"`` (default) reproduces
+        Abad et al. (2012, Algorithm 924)'s own same-index pairing, where a
+        term at order k contributes ``(TOL/|y^[k]|)^(1/k)``. ``"pytides"``
+        is the variant previously shipped as the default: each retained
+        coefficient at order k is instead paired with the tolerance
+        exponent of the *next*, untruncated order (see the comment in
+        ``get_step`` below). Switched after finding "pytides" silently
+        produces spurious instability at short orbital periods relative to
+        the integration horizon -- confirmed independently against
+        REBOUND/IAS15 and against "original" itself on the same initial
+        conditions (see paper_five_bodies/src/s1s2/s1s2_failing_points_*.py).
+        Both variants are kept so they can still be run back to back on the
+        same problem for a direct comparison (steps taken, mean order,
+        achieved error) -- see ``experiments/exp8_stepsize_controller.py``.
     is_mpfr : bool or None
         The sole place integration precision is chosen -- independent of
         how ``v_init``/``p_init`` were built (``exotides.orbital.
@@ -498,7 +502,7 @@ class TidesSolver:
         minord=6,
         nordinc=5,
         defect_error_control=False,
-        stepsize_controller="pytides",
+        stepsize_controller="original",
         is_mpfr=None,
     ):
         if is_mpfr and not HAS_GMPY2:
