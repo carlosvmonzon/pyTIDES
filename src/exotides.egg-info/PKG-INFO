@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: exotides
-Version: 0.1.1
+Version: 2.0.0
 Summary: Python port of the TIDES Taylor-integration N-body library (Abad et al.), for hierarchical exoplanet systems up to 5 bodies.
 Author-email: Carlos Vázquez Monzón <cvazquez@uloyola.es>
 License: GPL-3.0-or-later
