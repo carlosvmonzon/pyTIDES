@@ -24,3 +24,9 @@ coverage.xml
 # Generated experiments and paper figures
 /experiments/
 /figures/paper_figures/
+
+# Referee-response notes (ASCOM-D-26-00310), kept local
+/docs/revision/
+
+# Submitted manuscript sources (ASCOM-D-26-00310), kept local
+/paper/

@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `HierarchicalSystem` placed each body at its *own* position on its orbit,
+  with `mu = G * (M_interior + m_body)`, even when other bodies were bound to
+  it. That only works when those bodies (a moon, an S-type planet) have
+  negligible mass. For a 2+2 quadruple with equal masses -- `A`-`B` and
+  `C`-`D` at `a = 1`, `(A,B)`-`(C,D)` at `a = 100`, all circular -- `D` added
+  around `C` gave the `C`-`D` barycenter half the inner orbital velocity and
+  the outer orbit came out hyperbolic (`a = -5.75`, `e = 18.5`). The
+  `_resolve()`/`_interior_reference()`/`_local_interior()` scheme and its
+  final barycentering pass are replaced by an explicit binary tree of nested
+  subsystems (`_build_subsystems()`): orbits are merged in ascending `a`, each
+  joining the body's subsystem to its parent's, and `_place()` puts each
+  subsystem's barycenter on its orbit with `mu = G * (M_inner + M_outer)`.
+  This is exact for any hierarchy and barycentric by construction.
+  **Convention change:** a body's `elements` now describe the orbit of its
+  subsystem's barycenter (the body plus any descendants on tighter orbits),
+  not of the body itself. The `add_body` API and the 22 catalog templates
+  are unchanged. 13 templates give identical initial conditions (to
+  round-off). The 9 with a nested massive companion (moons, planets around a
+  secondary star) shift by `~1e-4` (positions) to `~2e-3` (velocities),
+  relative, for planet/moon masses `1e-3`/`1e-5`. See
+  `tests/test_hierarchical_construction.py`.
 - `orbital.cartesian_to_keplerian()` silently returned `aop = 0.0` whenever the
   orbital plane coincided with the reference (x, y) plane (`i = 0` or `i =
   pi`), even when `e > 0` -- discarding the orbit's real in-plane periapsis

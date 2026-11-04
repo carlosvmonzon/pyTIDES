@@ -469,14 +469,19 @@ class TidesSolver:
         is the variant previously shipped as the default: each retained
         coefficient at order k is instead paired with the tolerance
         exponent of the *next*, untruncated order (see the comment in
-        ``get_step`` below). Switched after finding "pytides" silently
-        produces spurious instability at short orbital periods relative to
-        the integration horizon -- confirmed independently against
-        REBOUND/IAS15 and against "original" itself on the same initial
-        conditions (see paper_five_bodies/src/s1s2/s1s2_failing_points_*.py).
-        Both variants are kept so they can still be run back to back on the
-        same problem for a direct comparison (steps taken, mean order,
-        achieved error) -- see ``experiments/exp8_stepsize_controller.py``.
+        ``get_step`` below). Written as ``(TOL_eff/|y^[q]|)^(1/q)``, that
+        estimate is the "original" one at an order-dependent, looser
+        effective tolerance ``TOL_eff = TOL^(q/(q+1))``: at the same
+        requested ``tolrel``/``tolabs`` it takes ~20% fewer coefficient
+        evaluations and returns ~10x larger errors, while both controllers
+        lie on the same cost-vs-error curve (work-precision sweep in
+        ``experiments/exp8_stepsize_controller.py``). It is therefore an
+        alternative, not an improvement, and it does not honour the
+        requested tolerance as literally as "original" -- which is why it
+        stopped being the default after it produced spurious instability
+        at short orbital periods relative to the integration horizon
+        (paper_five_bodies/src/s1s2/s1s2_failing_points_*.py). To trade
+        accuracy for speed, prefer a looser tolerance with "original".
     is_mpfr : bool or None
         The sole place integration precision is chosen -- independent of
         how ``v_init``/``p_init`` were built (``exotides.orbital.
@@ -721,9 +726,9 @@ class TidesSolver:
                 # -- i.e. each coefficient is treated as an estimator of the
                 # term that is actually being truncated, not of its own
                 # order. This differs from the same-index pairing above
-                # ("original") -- a deliberately documented variant (not an
-                # unrecorded accidental divergence), with no algebraic
-                # equivalence claimed with that formula.
+                # ("original") -- equivalent to it at the looser effective
+                # tolerance TOL^(q/(q+1)) (resp. TOL^((q-1)/q) for tp); see
+                # the stepsize_controller docstring above.
                 if ynp == 0.0:
                     step_val = (tol ** dordp) * ((1.0 / ynu) ** dord)
                 else:

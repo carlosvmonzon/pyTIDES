@@ -159,7 +159,7 @@ gravity for a fully generic `N = len(v) // 6` with no upper bound — the double
   to 16 bodies via `HierarchicalSystem` directly (not a catalog template) purely to measure
   how the Numba speedup scales with `N`, which only works because nothing below the catalog
   layer objects to going past 5 bodies.
-- `HierarchicalSystem._resolve()`/`_interior_reference()` (`src/exotides/orbital.py`) — the
+- `HierarchicalSystem._build_subsystems()`/`_place()` (`src/exotides/orbital.py`) — the
   convenience layer that turns a tree of Keplerian elements into barycentric initial
   conditions — assumes a well-defined "what's interior to this body" partial order. A star
   cluster or planetesimal disk has no such natural order, so this layer specifically

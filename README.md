@@ -12,7 +12,7 @@ itself (`src/exotides/core.py`'s `TidesSolver`) and the gravitational N-body gen
 and no hard cap on the number of bodies. What's actually scoped to hierarchies is everything
 built *on top* of that engine: the template catalog (`src/exotides/hierarchy.py`), the
 Jacobi-ordering/interior-reference convention used to turn a tree of Keplerian elements into
-barycentric initial conditions (`HierarchicalSystem._resolve()` in `src/exotides/orbital.py`),
+barycentric initial conditions (`HierarchicalSystem._build_subsystems()`/`_place()` in `src/exotides/orbital.py`),
 the 1PN correction, the plotting helpers, and the choice to always treat a collision as terminal
 (see Features Guide §6) rather than merging bodies. See
 [`docs/design-notes.md`](docs/design-notes.md) for the precise, code-level breakdown of what is
@@ -413,7 +413,7 @@ Two planets orbit two different stellar components.
 > combined, not just Star B, its immediate parent, which is why the diagrams above
 > can use equal-mass twins for the inner pair instead of a lopsided ratio: a real
 > hierarchical triple with two comparable-mass inner stars is now handled correctly.
-> Both the diagrams above and `HierarchicalSystem._resolve()`/`_interior_reference()`
+> Both the diagrams above and `HierarchicalSystem._build_subsystems()`
 > use this same rule, so a heavy inner sibling or a whole inner subsystem visibly
 > displaces where a wider body's orbit is anchored, in both. The same rule is applied
 > by `src/exotides/plotting.py`'s `plot_orbital_elements`/`plot_pn_comparison` when computing
