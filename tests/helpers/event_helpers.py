@@ -1,5 +1,5 @@
 """
-Python/tests/helpers/event_helpers.py
+tests/helpers/event_helpers.py
 
 Shared assertions for terminal-collision-event tests (test_events.py).
 """

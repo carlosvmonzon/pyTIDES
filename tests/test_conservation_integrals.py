@@ -5,7 +5,7 @@ Conservation of the classical integrals (energy, angular momentum, linear
 momentum, barycentre motion) in a hierarchical system with more than three
 bodies: a 2+2 quadruple with comparable masses on inclined, eccentric
 orbits, integrated for 200 periods of its inner binaries at tol = 1e-14.
-Short version of experiments/exp13_conservation_integrals.py, which runs the
+Short version of the conservation study in the pyTIDES paper, which runs the
 same check over 10^4 inner periods for several systems and tolerances.
 """
 

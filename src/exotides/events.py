@@ -8,9 +8,8 @@ convenience builder.
 This ports the original C TIDES library's event-detection subsystem
 (``doubEVENTS.c``/``mpfrEVENTS.c``: ``dp_tides_find_zeros``,
 ``dp_tides_find_extrema``, ``dp_tides_events``, etc., listed in
-``C/libTIDES/doubEVENTS.h``) -- a capability that existed in the original C
-code and its tutorial (``events.nb``) but was never ported to this Python
-package. The C version locates a zero of a user-supplied scalar function of
+``libTIDES/doubEVENTS.h`` of the TIDES distribution and illustrated in its
+``events.nb`` tutorial). The C version locates a zero of a user-supplied scalar function of
 the state by root-finding directly on the dense Taylor polynomial already
 computed for the current integration step (no re-integration or fixed-step
 shrinking needed); ``TidesSolver.solve`` does the same here, bisecting on
@@ -26,8 +25,8 @@ template, etc.), rather than the simulation silently continuing with a
 mutated body list.
 
 This file is a Python port of the event-detection subsystem of the original
-C TIDES library (libTIDES/doubEVENTS.c, mpfrEVENTS.c -- see
-../C/libTIDES/doubEVENTS.h), from the TIDES project
+C TIDES library (libTIDES/doubEVENTS.c and mpfrEVENTS.c in the TIDES
+distribution), from the TIDES project
 (http://gme.unizar.es/software/tides):
 
     Copyright (C) 2010  A. Abad, R. Barrio, F. Blesa, M. Rodriguez

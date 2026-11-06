@@ -4,7 +4,7 @@ tests/test_events.py
 Verification for zero-crossing event detection (exotides.events, and the
 ``events``/``last_events`` parameter of ``exotides.core.TidesSolver.solve``) --
 ported from the original C TIDES library's ``doubEVENTS.c``/
-``mpfrEVENTS.c`` subsystem (never previously in this Python package).
+``mpfrEVENTS.c`` subsystem.
 
 Four checks:
 1. Regression: passing ``events=None`` (the default) reproduces the exact

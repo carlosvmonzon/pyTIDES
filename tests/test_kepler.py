@@ -63,7 +63,7 @@ def test_kepler_period_closure(mode="std"):
 
 
 def main():
-    mode = parse_precision_mode(sys.argv, "Python/tests/test_kepler.py")
+    mode = parse_precision_mode(sys.argv, "tests/test_kepler.py")
     test_kepler_period_closure(mode)
 
 

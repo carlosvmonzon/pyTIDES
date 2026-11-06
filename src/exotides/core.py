@@ -18,8 +18,9 @@ Contents
   floats via gmpy2 (multiple precision).
 
 This file is a Python port of the Taylor Series Method core of the original
-C TIDES library (libTIDES/dp_tides.c, mp_tides.c, minc_tides.c -- see
-../C/libTIDES), from the TIDES project (http://gme.unizar.es/software/tides):
+C TIDES library (libTIDES/dp_tides.c, mp_tides.c and minc_tides.c in the
+TIDES distribution), from the TIDES project
+(http://gme.unizar.es/software/tides):
 
     Copyright (C) 2010  A. Abad, R. Barrio, F. Blesa, M. Rodriguez
     Grupo de Mecanica Espacial, University of Zaragoza, SPAIN
@@ -56,8 +57,8 @@ try:
     import gmpy2
     HAS_GMPY2 = True
 except ImportError:
-    # gmpy2 es opcional: si no está instalado, el paquete sigue funcionando
-    # con float64 y desactiva únicamente el modo de multiprecisión.
+    # gmpy2 is optional: without it the package still works in float64 and
+    # only the multiple-precision mode is disabled.
     HAS_GMPY2 = False
 
     class gmpy2:  # noqa: N801 - dummy stub
@@ -197,8 +198,8 @@ def mul_mc(u, v, k):
     scalar
         The k-th coefficient of the product series.
     """
-    # Producto de series de Taylor: el coeficiente k se obtiene por
-    # convolución de todos los pares de órdenes que suman k.
+    # Product of Taylor series: coefficient k is the convolution over all
+    # pairs of orders that add up to k.
     w = u[0] * v[k]
     for j in range(1, k + 1):
         w += u[j] * v[k - j]
@@ -227,8 +228,8 @@ def div_mc(u, v, w, k):
     ZeroDivisionError
         If v[0] == 0.
     """
-    # División recurrente: usa los coeficientes de w ya calculados en órdenes
-    # inferiores para despejar el nuevo coeficiente.
+    # Division by recurrence: the coefficients of w already computed at lower
+    # orders are used to solve for the new one.
     if v[0] == 0.0:
         raise ZeroDivisionError("div_mc: denominator leading coefficient v[0] is zero")
     ww = u[k]
@@ -261,12 +262,10 @@ def inv_mc(p, u, w, k):
     ZeroDivisionError
         If u[0] == 0.
     """
-    # Caso p / U. Los ceros se construyen desde u para conservar el tipo
-    # numérico, tanto en float como en mpfr.
+    # Case p / U. Zeros are built from u so that the numeric type (float or
+    # mpfr) is preserved.
     if u[0] == 0.0:
         raise ZeroDivisionError("inv_mc: denominator leading coefficient u[0] is zero")
-    # Si V = exp(U), entonces V' = U' * V; esta recurrencia evita derivación
-    # simbólica y solo usa coeficientes previos.
     if k == 0:
         ww = u[0] * 0.0 + 1.0   # preserves mpfr type if needed
     else:
@@ -294,8 +293,8 @@ def exp_mc(u, v, k):
     -------
     scalar
     """
-    # Potencia con exponente constante: el orden 0 fija la escala inicial y
-    # los demás órdenes se obtienen por recurrencia.
+    # If V = exp(U), then V' = U' * V: this recurrence avoids symbolic
+    # differentiation and uses only previous coefficients.
     if k == 0:
         return _exp(u[0])
     w = k * v[0] * u[k]
@@ -328,7 +327,8 @@ def pow_mc_c(u, c, w, k):
     ZeroDivisionError
         If k==0 and u[0]==0.
     """
-    # Para W = log(U), se usa U * W' = U' como identidad de recurrencia.
+    # Power with a constant exponent: order 0 sets the initial scale and the
+    # higher orders follow by recurrence.
     if k == 0:
         if u[0] == 0.0:
             raise ZeroDivisionError("pow_mc_c: u[0] is zero, cannot raise to power c")
@@ -363,7 +363,7 @@ def log_mc(u, w, k):
     ZeroDivisionError
         If k==0 and u[0]==0.
     """
-    # sin(U) se calcula acoplado con los coeficientes ya disponibles de cos(U).
+    # For W = log(U), the identity U * W' = U' gives the recurrence.
     if k == 0:
         if u[0] == 0.0:
             raise ZeroDivisionError("log_mc: u[0] is zero")
@@ -391,7 +391,8 @@ def sin_mc(u, cos_u, k):
     -------
     scalar
     """
-    # cos(U) se calcula acoplado con los coeficientes ya disponibles de sin(U).
+    # sin(U) is computed together with the already available coefficients of
+    # cos(U).
     if k == 0:
         return _sin(u[0])
     ww = u[1] * cos_u[k - 1]
@@ -417,6 +418,8 @@ def cos_mc(u, sin_u, k):
     -------
     scalar
     """
+    # cos(U) is computed together with the already available coefficients of
+    # sin(U).
     if k == 0:
         return _cos(u[0])
     ww = -u[1] * sin_u[k - 1]
@@ -474,21 +477,23 @@ class TidesSolver:
         effective tolerance ``TOL_eff = TOL^(q/(q+1))``: at the same
         requested ``tolrel``/``tolabs`` it takes ~20% fewer coefficient
         evaluations and returns ~10x larger errors, while both controllers
-        lie on the same cost-vs-error curve (work-precision sweep in
-        ``experiments/exp8_stepsize_controller.py``). It is therefore an
+        lie on the same cost-vs-error curve (work-precision sweep on a
+        Kepler orbit and a hierarchical triple). It is therefore an
         alternative, not an improvement, and it does not honour the
         requested tolerance as literally as "original" -- which is why it
-        stopped being the default after it produced spurious instability
-        at short orbital periods relative to the integration horizon
-        (paper_five_bodies/src/s1s2/s1s2_failing_points_*.py). To trade
-        accuracy for speed, prefer a looser tolerance with "original".
+        stopped being the default after it produced a spurious instability
+        in long integrations of hierarchical systems with a short inner
+        period. To trade accuracy for speed, prefer a looser tolerance with
+        "original".
     is_mpfr : bool or None
-        The sole place integration precision is chosen -- independent of
-        how ``v_init``/``p_init`` were built (``exotides.orbital.
-        HierarchicalSystem``/``exotides.nbody.pack_state`` always build
-        plain ``float64``, regardless of this setting). ``None`` (default)
-        auto-detects from whether ``v_init``/``p_init`` passed to ``solve``
-        already hold ``gmpy2.mpfr`` values. ``True``/``False`` forces
+        Selects the integration precision, independently of how
+        ``v_init``/``p_init`` were built (``exotides.orbital.
+        HierarchicalSystem`` and ``exotides.nbody.pack_state`` build plain
+        ``float64`` unless they are given ``gmpy2.mpfr`` inputs -- ``G``,
+        masses and elements, or positions and velocities, respectively).
+        ``None`` (default) auto-detects from whether ``v_init``/``p_init``
+        passed to ``solve`` already hold ``gmpy2.mpfr`` values.
+        ``True``/``False`` forces
         ``solve`` to convert them to that precision up front (via
         ``exotides.core.to_mpfr`` or plain ``float``, respectively) instead
         of trusting their existing dtype -- e.g. run a plain-``float64``-built
@@ -575,23 +580,22 @@ class TidesSolver:
         "coefficient_evals"}`` -- ``coefficient_evals`` sums ``order + 1``
         over every accepted step, a proxy for total recurrence/RHS cost
         (cheap steps at low order cost less than expensive ones at high
-        order, unlike a plain step count). Used to compare
-        ``stepsize_controller`` variants on the same problem; see
-        ``experiments/exp8_stepsize_controller.py``.
+        order, unlike a plain step count). Useful for comparing
+        ``stepsize_controller`` variants on the same problem.
         """
         self.last_events = []
         self.last_run_stats = {}
         if self.is_mpfr is None:
-            # Detecta si debe trabajar en multiprecisión. Basta con que una
-            # variable o parámetro sea mpfr para conservar ese tipo durante
-            # todo el cálculo.
+            # Decide whether to work in multiple precision: a single mpfr
+            # variable or parameter is enough to keep that type throughout
+            # the computation.
             is_mpfr = HAS_GMPY2 and (
                 any(isinstance(x, gmpy2.mpfr) for x in v_init)
                 or any(isinstance(x, gmpy2.mpfr) for x in p_init)
             )
         else:
-            # Elección explícita (constructor is_mpfr=True/False): se
-            # respeta sin importar el dtype real de v_init/p_init.
+            # Explicit choice (constructor is_mpfr=True/False): honoured
+            # regardless of the actual dtype of v_init/p_init.
             is_mpfr = self.is_mpfr
 
         dtype = object if is_mpfr else np.float64
@@ -629,8 +633,8 @@ class TidesSolver:
             rmaxstep = 100.0
             rminstep = 0.01
 
-        # Dirección de integración: el mismo solver sirve para avanzar o
-        # retroceder en el tiempo.
+        # Integration direction: the same solver can go forward or backward
+        # in time.
         if t0 < tend:
             tflag = 0
             if deltat < 0:
@@ -640,12 +644,12 @@ class TidesSolver:
             if deltat > 0:
                 deltat = -deltat
 
-        # Historial de salida. Siempre se guarda el punto inicial.
+        # Output history. The initial point is always stored.
         t_hist = [t0]
         v_hist = [v.copy()]
 
-        # XVAR contiene los coeficientes de Taylor de tiempo y variables.
-        # XVAR2 se reserva para el control opcional de defecto.
+        # XVAR holds the Taylor coefficients of time and of the state
+        # variables; XVAR2 is reserved for the optional defect control.
         if is_mpfr:
             XVAR = np.empty((self.maxord + 1, self.nvar + 1), dtype=object)
             XVAR.fill(gmpy2.mpfr("0.0"))
@@ -674,8 +678,8 @@ class TidesSolver:
             return np.max(np.abs(XVAR[ord_idx, 1:]))
 
         def get_tolerances(ynb_val):
-            # Ajusta tolerancia y orden de Taylor según el tamaño de la
-            # solución. Replica la heurística del integrador TIDES en C.
+            # Set the tolerance and Taylor order from the size of the
+            # solution, reproducing the heuristic of the C TIDES integrator.
             yna  = norm_inf_vec(v)
             tol  = tolabs_v + max(yna, ynb_val) * tolrel_v
             miny = min(yna, ynb_val)
@@ -691,9 +695,9 @@ class TidesSolver:
             return tol, tolo, order, yna
 
         def get_step(order, tol, stepant_val):
-            # Estima el paso usando los últimos coeficientes no nulos: si los
-            # términos altos son pequeños, se puede avanzar más sin perder
-            # precisión.
+            # Estimate the step from the last nonzero coefficients: if the
+            # high-order terms are small, a longer step can be taken without
+            # losing accuracy.
             ord_val = order + 1
             ynu = gmpy2.mpfr("0.0") if is_mpfr else 0.0
             while ord_val > 0:
@@ -756,8 +760,8 @@ class TidesSolver:
             return np.zeros(self.nvar, dtype=np.float64)
 
         def horner(t_val, order):
-            # Evalúa el polinomio de Taylor con Horner, evitando potencias
-            # explícitas y reduciendo operaciones.
+            # Evaluate the Taylor polynomial with Horner's rule, which avoids
+            # explicit powers and reduces the number of operations.
             res = make_zero_vector()
             for j in range(1, self.nvar + 1):
                 temp = XVAR[order, j] * t_val
@@ -767,7 +771,7 @@ class TidesSolver:
             return res
 
         def hornerd(t_val, order):
-            # Misma evaluación que horner(), pero aplicada a la derivada.
+            # Same evaluation as horner(), applied to the derivative.
             res = make_zero_vector()
             for j in range(1, self.nvar + 1):
                 temp = order * XVAR[order, j] * t_val
@@ -777,8 +781,9 @@ class TidesSolver:
             return res
 
         def steps_DEC(t_val, tol, order, step_val):
-            # Control de defecto opcional: compara la derivada del polinomio
-            # con la dinámica recalculada y reduce el paso si es necesario.
+            # Optional defect control: compare the derivative of the
+            # polynomial with the recomputed dynamics and shorten the step if
+            # needed.
             nonlocal rejected_steps
             iter_count = 1
             norma = 1e99
@@ -797,12 +802,12 @@ class TidesSolver:
             return t_curr
 
         def find_event_crossings(t_start, v_start, nstep, order):
-            # Busca cruces por cero de cada evento dentro del paso aceptado
-            # actual, evaluando su función en los dos extremos (usando el
-            # mismo polinomio de Horner ya calculado para este paso) y
-            # afinando por bisección los que cambian de signo. Devuelve
-            # (offset_terminal_o_None, lista_de_(offset, estado, evento)
-            # ordenada por offset ascendente).
+            # Look for zero crossings of every event within the current
+            # accepted step: evaluate its function at both endpoints (with
+            # the Horner polynomial already computed for this step) and
+            # refine by bisection those that change sign. Returns
+            # (terminal_offset_or_None, list of (offset, state, event)
+            # sorted by increasing offset).
             v_end = horner(nstep, order)
             found = []
             for evt in events:
@@ -847,8 +852,8 @@ class TidesSolver:
         # ---- main integration loop ----------------------------------------
 
         while ((t0 < tend) and (tflag == 0)) or ((t0 > tend) and (tflag == 1)):
-            # Cada vuelta construye una serie alrededor de t0, selecciona un
-            # paso adaptativo y registra los puntos de salida que caen dentro.
+            # Each pass builds a series around t0, selects an adaptive step
+            # and records the output points that fall inside it.
             tol, tolo, order, yna = get_tolerances(ynb)
 
             self.mincseries(t0, v, p, XVAR, order, self.maxord)
@@ -881,13 +886,13 @@ class TidesSolver:
                         "name": evt.name, "terminal": evt.terminal,
                     })
 
-            # Si un evento terminal cae dentro de este paso, el paso efectivo
-            # (para registrar puntos de salida y avanzar el estado) se recorta
-            # justo hasta ese instante.
+            # If a terminal event falls within this step, the effective step
+            # (for recording output points and advancing the state) is cut
+            # exactly at that instant.
             step_limit = nstep if terminal_offset is None else terminal_offset
 
-            # Registra puntos de salida dentro del paso adaptativo actual,
-            # aunque el paso interno no coincida con dt.
+            # Record the output points within the current adaptive step, even
+            # though the internal step does not coincide with dt.
             ti  = tzero + ipos * deltat
             tit = ti - temp
             while ((tit <= step_limit) and (tflag == 0)) or ((tit >= step_limit) and (tflag == 1)):
@@ -909,16 +914,16 @@ class TidesSolver:
                 stopped_by_event = True
                 break
 
-            # Avanza el estado real hasta el final del paso aceptado.
+            # Advance the state to the end of the accepted step.
             v       = horner(nstep, order)
             ynb     = yna
             stepant = abs(nstep)
         else:
             stopped_by_event = False
 
-        # Garantiza que el punto final aparece en el historial aunque no caiga
-        # exactamente sobre la rejilla de salida por redondeo (salvo que la
-        # integración se haya detenido antes de tend por un evento terminal).
+        # Make sure the final point appears in the history even if round-off
+        # keeps it off the output grid (unless a terminal event stopped the
+        # integration before tend).
         if not stopped_by_event and (len(t_hist) == 0 or abs(float(t_hist[-1]) - float(tend)) > 1e-12):
             t_hist.append(t0)
             v_hist.append(v.copy())

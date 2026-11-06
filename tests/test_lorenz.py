@@ -65,7 +65,7 @@ def test_lorenz_periodic_orbit(mode="std"):
 
 
 def main():
-    mode = parse_precision_mode(sys.argv, "Python/tests/test_lorenz.py")
+    mode = parse_precision_mode(sys.argv, "tests/test_lorenz.py")
     test_lorenz_periodic_orbit(mode)
 
 

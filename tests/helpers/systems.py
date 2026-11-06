@@ -1,5 +1,5 @@
 """
-Python/tests/helpers/systems.py
+tests/helpers/systems.py
 
 Generic HierarchicalSystem builder, consolidating the "add N bodies, then
 generate()" pattern that used to be hand-rolled once per test file

@@ -84,8 +84,8 @@ def save_figure(fig, filename: str, output_dir: str | Path | None = None) -> Pat
         Base directory where the figures folder will be created. If None,
         the current working directory is used.
     """
-    # Centraliza la carpeta de figuras para que los ejemplos no dependan del
-    # directorio desde el que se ejecuten.
+    # Keep all figures in one folder, so the examples do not depend on the
+    # directory they are run from.
     base_dir = Path(output_dir) if output_dir is not None else Path.cwd()
     figures_dir = base_dir / "figures"
     figures_dir.mkdir(parents=True, exist_ok=True)

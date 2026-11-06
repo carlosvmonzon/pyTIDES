@@ -41,13 +41,16 @@ src/exotides.egg-info/SOURCES.txt
 src/exotides.egg-info/dependency_links.txt
 src/exotides.egg-info/requires.txt
 src/exotides.egg-info/top_level.txt
+tests/test_conservation_integrals.py
 tests/test_events.py
 tests/test_exoplanet_systems.py
 tests/test_fast_nbody.py
+tests/test_hierarchical_construction.py
 tests/test_hierarchy.py
 tests/test_kepler.py
 tests/test_kozai_nbody.py
 tests/test_lagrange_three_body.py
 tests/test_lorenz.py
+tests/test_orbital_elements.py
 tests/test_pythagorean_three_body.py
 tests/test_relativity.py

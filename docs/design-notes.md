@@ -35,9 +35,10 @@ The installable package itself is named `exotides` (`import exotides`), not `pyt
 `pytides` is already a real, unrelated PyPI package for ocean tidal-harmonic analysis and
 prediction (sam-cox/pytides), so using it here would collide with an existing project despite
 the different domain. `exotides` keeps the project's own name, **pyTIDES**, as the
-human-facing name (this repo, the README title) while the Python import name specifically
-signals what the package is *for* -- hierarchical **exo**planet systems -- rather than
-reusing the already-taken generic name.
+human-facing name (this repo, the README title) while the Python import name signals what
+the package was originally built *for* -- hierarchical **exo**planet systems; its scope has
+since widened to small-N gravitational systems in general -- rather than reusing the
+already-taken generic name.
 
 ---
 
@@ -54,8 +55,8 @@ series":
   the current step (via dense output) -- described in detail in Biscani, F., & Izzo, D.
   (2022), "Reliable event detection for Taylor methods in astrodynamics," *MNRAS*, 513(4),
   4833-4844 -- is the same idea as `src/exotides/events.py` + `TidesSolver.solve`'s
-  `find_event_crossings` (`src/exotides/core.py:711`), which itself ports the original C
-  library's `dp_tides_find_zeros`.
+  `find_event_crossings` (an inner function of `solve` in `src/exotides/core.py`), which
+  itself ports the original C library's `dp_tides_find_zeros`.
 - **Arbitrary precision**: heyoka uses `mp++`'s `mppp::real`; pyTIDES uses `gmpy2.mpfr`.
   Same goal (runtime-configurable precision), different backend library.
 - **Performance**: heyoka JIT-compiles a *symbolic, problem-specific* computational graph
@@ -97,9 +98,10 @@ for essentially everything it does, and it also installs on Windows via `pip ins
 (the pure-Python interface; using the C interface directly needs the MSVC compiler).
 
 pyTIDES does not compete with that breadth -- it solves a much narrower problem (a hierarchical
-star/planet/moon system, specifically) and leans entirely into that narrowness: a semantic
-template catalog, a Jacobi-ordering convention baked into every computation, and a plotting API
-that already knows what a moon's parent or a circumbinary planet's reference frame should be.
+star/planet/moon system, specifically) and leans entirely into that narrowness: a general
+builder for hierarchical initial conditions, a semantic template catalog on top of it, and
+plotting helpers that measure osculating elements against multi-body reference frames (e.g.
+a circumbinary planet's binary barycenter).
 Within that narrower scope, a few tradeoffs can still matter:
 
 - **Arbitrary precision.** REBOUND's integrators are fixed double precision. pyTIDES can
@@ -108,10 +110,11 @@ Within that narrower scope, a few tradeoffs can still matter:
 - **No compiled extension to build for the Python-only path.** The core solver, the
   hierarchy builder, the 1PN correction and even the Numba-accelerated fast path are all
   pure Python/JIT -- no C compiler needed at all to install or to read/modify the physics.
-- **A semantic hierarchy-template catalog built in.** `HierarchicalSystemTemplates` ships
-  22 named star/planet/moon configurations (S-type, P-type, nested triples) with correct
-  Jacobi-ordering baked in, rather than requiring every configuration to be hand-assembled
-  from individual particles and orbital elements.
+- **Hierarchical initial conditions built in.** `HierarchicalSystem` builds the barycentric
+  state of any hierarchy from each body's parent and Keplerian elements, and
+  `HierarchicalSystemTemplates` ships 22 named star/planet/moon configurations (S-type,
+  P-type, nested triples) on top of it, rather than requiring every configuration to be
+  hand-assembled from individual particles.
 - **A Taylor-series (automatic-differentiation-like) integration method**, rather than a
   symplectic or embedded Runge-Kutta scheme -- a genuinely different numerical approach that
   reaches high accuracy by increasing the series order rather than switching integrators.
@@ -126,19 +129,22 @@ hierarchy-template topology better than merging bodies into a different tree sha
 
 ### `kozai`
 
-**`kozai`** (joe-antognini/kozai) is the closest *domain* match — hierarchical triples
-with 1PN precession and 2.5PN gravitational-radiation terms (Blaes et al. 2002) — but it
-integrates the **secularly-averaged** (orbit-averaged) equations, not full Cartesian
-N-body dynamics. It answers a different question (long-term eccentricity/inclination
-evolution cheaply) than pyTIDES (short-to-medium-term full trajectories).
+**`kozai`** (joe-antognini/kozai; Antognini, J. M. O. (2015), "Timescales of Kozai-Lidov
+oscillations at quadrupole and octupole order in the test particle limit," *MNRAS*, 452(4),
+3610-3619) is the closest *domain* match — hierarchical triples with terms up to
+hexadecapole order and, optionally, 1PN precession and 2.5PN gravitational-radiation terms
+(Blaes et al. 2002) — but it integrates the **secularly-averaged** (orbit-averaged)
+equations, not full Cartesian N-body dynamics. It answers a different question (long-term
+eccentricity/inclination evolution cheaply) than pyTIDES (short-to-medium-term full
+trajectories).
 
 ---
 
 ## 4. What "not general-purpose" actually means in this codebase
 
-The README states the package "doesn't aim to integrate arbitrary particle counts or
-non-hierarchical configurations." Taken literally, that's stronger than what's actually
-true of the code, and worth being precise about:
+The README calls pyTIDES "deliberately not a general-purpose N-body package." Taken
+literally, that's stronger than what's actually true of the code, and worth being precise
+about:
 
 **The integrator itself has no such restriction.** `TidesSolver` (`src/exotides/core.py`) is a
 generic variable-order/variable-step Taylor ODE solver with no notion of "N-body" or
@@ -150,8 +156,8 @@ gravity for a fully generic `N = len(v) // 6` with no upper bound — the double
 
 **What *is* scoped to hierarchies, specifically:**
 
-- `HierarchicalSystemTemplates`'s catalog validation (`src/exotides/hierarchy.py:35-37`,
-  `MAX_STARS = 3`, `MAX_PLANETS = 2`, `MAX_MOONS = 1`) is a self-imposed limit on what the
+- `HierarchicalSystemTemplates`'s catalog validation (`MAX_STARS = 3`, `MAX_PLANETS = 2`,
+  `MAX_MOONS = 1` in `src/exotides/hierarchy.py`) is a self-imposed limit on what the
   *named template catalog* documents and draws — not a limit on the solver. Nothing stops
   a caller from driving `TidesSolver` + `nbody_mincseries` directly with a hand-built state
   vector of, say, 50 bodies; it would integrate the pairwise-Newtonian dynamics correctly.
@@ -173,9 +179,9 @@ gravity for a fully generic `N = len(v) // 6` with no upper bound — the double
   not a hard-coded one.
 
 So the accurate statement is: **the Taylor-series N-body engine is generic; the template
-catalog, the Jacobi-ordering/interior-reference convention, the always-terminal collision
-model, and the absence of large-N performance techniques are what's specifically built for
-—and scoped to— hierarchies.** The README has been reworded accordingly.
+catalog, the binary-tree (Jacobi-type) construction of initial conditions, the
+always-terminal collision model, and the absence of large-N performance techniques are
+what's specifically built for —and scoped to— hierarchies.**
 
 ---
 

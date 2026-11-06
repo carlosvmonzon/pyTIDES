@@ -5,7 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Package description in `pyproject.toml`: "for small-N gravitational systems, with
+  ready-made hierarchical templates up to five bodies", matching the package's scope.
+- Documentation brought up to date with v2.0.0: README (default `"original"` step-size
+  controller and the current comparison with `"pytides"`, precision handling, the
+  hierarchy convention and what the S/P labels do, 1PN accuracy for comparable masses),
+  `docs/design-notes.md`, module docstrings and test docstrings; references to scripts and
+  paths that are not part of this repository were removed.
+- All code comments are now in English. Several comments in `core.py`'s series-algebra
+  routines had drifted one function down and were moved back to the routines they
+  describe.
+
+### Removed
+- Unused `REPO_DIR` test helper, which pointed outside the repository.
+
+### Fixed
+- CI: the ruff version specifier is quoted, so `pip install "ruff>=0.16"` no longer
+  redirects its output to a file named `=0.16`.
+
 ## [2.0.0] - 2026-11-04
+
+### Added
+- `TidesSolver(stepsize_controller=...)`, choosing between `"original"` (Abad et al. 2012,
+  Algorithm 924) and `"pytides"`, also exposed through
+  `HierarchicalSystemTemplates.solve_nbody`/`solve_hierarchy`/`make_nbody_solver` (first
+  tagged as v1.0.0).
+- `exotides.j2`: a continuous J2 (oblateness) term, as work in progress.
+  `nbody_j2_mincseries` raises `NotImplementedError` until it has been validated.
+- Tests `test_hierarchical_construction.py` and `test_conservation_integrals.py` (see the
+  construction fix below) and `test_orbital_elements.py`.
+
+### Changed
+- **Breaking:** the default `stepsize_controller` is now `"original"` instead of
+  `"pytides"`. `"pytides"` is equivalent to `"original"` at a looser, order-dependent
+  effective tolerance `TOL^(q/(q+1))`; it is kept as an alternative, but it stopped being
+  the default after producing a spurious instability in long integrations of hierarchical
+  systems with a short inner period.
+- Relicensed from MIT to GPL-3.0-or-later, matching the original TIDES (first tagged as
+  v1.1.0).
+- N-body and hierarchy setup information is printed with plain `print` instead of
+  `logging`.
 
 ### Fixed
 - `HierarchicalSystem` placed each body at its *own* position on its orbit,

@@ -1,5 +1,5 @@
 """
-Python/tests/helpers/hierarchy_reference.py
+tests/helpers/hierarchy_reference.py
 
 Generic helpers for picking "the smaller body" of a hierarchy template and
 the correct (possibly multi-body, Jacobi-ordered) reference frame its
@@ -59,13 +59,15 @@ def reference_template_indices(template, elements, target_idx):
     elements should be measured against: its parent, plus any other child
     of the parent with a smaller own semi-major axis, plus (walking up)
     each ancestor's own local contribution, so long as that ancestor link
-    is itself interior to the target's orbit. Mirrors
-    ``HierarchicalSystem._local_interior``/``_interior_reference``
-    (src/exotides/orbital.py) -- same Jacobi-ordering rule needed to get e.g. a
+    is itself interior to the target's orbit. This is the interior side of
+    the target's orbit in ``HierarchicalSystem._build_subsystems``
+    (src/exotides/orbital.py) -- the same ordering rule needed to get e.g. a
     P-type/circumbinary planet's reference right (both binary components
     combined, not just its immediate template parent), computed directly
     from the template's static topology instead of a resolved
-    ``HierarchicalSystem``.
+    ``HierarchicalSystem``. The target itself is used alone, which matches
+    the construction when nothing is bound to it (true for the "smaller
+    body" chosen by ``select_smaller_body``).
     """
     parent_idx = template.parents[target_idx]
     indices = _local_interior_indices(template, elements, parent_idx, target_idx)

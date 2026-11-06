@@ -9,6 +9,15 @@ simulate.  Planets in binary-star systems are marked as:
     S - circumstellar, orbiting one stellar component
     P - circumbinary, orbiting the binary barycenter
 
+The S/P label is used only to validate a template and to choose its default
+elements (``default_elements`` puts S-type planets inside the binary and
+P-type planets outside it). The construction itself
+(``HierarchicalSystem._build_subsystems``) does not read it: an S- and a
+P-type planet share the same parent, and which bodies an orbit encloses is
+decided by the semi-major axes alone. Elements passed explicitly to
+``build``/``initial_conditions``/``solve_nbody`` must therefore be
+consistent with the label.
+
 Copyright (C) 2026  Carlos Vazquez Monzon
 
 This file is part of pyTIDES (the ``exotides`` package).
@@ -38,11 +47,10 @@ from .nbody import nbody_mincseries, nbody_pn_mincseries
 from .orbital import HierarchicalSystem
 from .relativity import append_pn_params, warn_pn_quality
 
-# Physical speed of light in the same units convention as G (see
-# HierarchicalSystemTemplates.make_nbody_solver's ``c`` kwarg): with G=1 and
-# lengths/masses in the caller's own units, ``c`` must be supplied in
-# matching units -- there is no universal default, so callers of
-# physics="pn" must pass one explicitly.
+# Taylor-series generator for each ``physics`` choice. physics="pn" also
+# needs the speed of light (``speed_of_light`` in solve_nbody/
+# solve_hierarchy), in the same units as G, lengths and masses -- there is
+# no universal default, so callers must pass one explicitly.
 _PHYSICS_GENERATORS = {
     "newtonian": nbody_mincseries,
     "pn": nbody_pn_mincseries,
@@ -745,9 +753,9 @@ class HierarchicalSystemTemplates:
         # No further restriction on top of the per-planet checks above: two
         # S-type planets may share a star (binary_two_s_planets_same_star),
         # orbit different stars (binary_two_s_planets), or both be P-type
-        # circumbinary planets (binary_two_p_planets) -- Jacobi ordering by
-        # semi-major axis (HierarchicalSystem._resolve) handles every
-        # combination correctly.
+        # circumbinary planets (binary_two_p_planets) -- the ordering by
+        # semi-major axis in HierarchicalSystem._build_subsystems handles
+        # every combination correctly.
 
         return True
 
@@ -782,12 +790,12 @@ class HierarchicalSystemTemplates:
         planet_node = system.nodes[names[planet_idx]]
         star_node = system.nodes[names[star_idx]]
 
-        # Same Jacobi-ordering convention as HierarchicalSystem._resolve():
-        # the mass the planet's own orbit is anchored to is its parent
-        # star's own mass plus any *other* sibling that orbits closer in
-        # (e.g. a sibling star in a binary that's tighter than the planet's
-        # own orbit) -- a wider sibling is an external perturber and is
-        # excluded.
+        # Same ordering rule as HierarchicalSystem._build_subsystems(): the
+        # mass interior to the planet's orbit is its parent star's own mass
+        # plus any *other* sibling that orbits closer in (e.g. the other
+        # star of a binary tighter than the planet's own orbit) -- a wider
+        # sibling is an external perturber and is excluded. (Bodies bound to
+        # those siblings are neglected here, which is fine for a warning.)
         planet_a = planet_node.elements["a"]
         central_mass = star_node.mass + sum(
             sibling.mass for sibling in star_node.children
@@ -862,9 +870,9 @@ class HierarchicalSystemTemplates:
                 planet_idx = template.parents[body_idx]
                 star_idx = template.parents[planet_idx]
                 a_planet = elements[planet_idx]["a"]
-                # Same Jacobi-ordering convention as
-                # HierarchicalSystem._resolve(): include a sibling of the
-                # planet only if its own orbit is interior to the planet's
+                # Same ordering rule as
+                # HierarchicalSystem._build_subsystems(): include a sibling
+                # of the planet only if its own orbit is interior to the planet's
                 # (smaller "a") -- e.g. the other star in a binary, for a
                 # wide P-type planet; a narrower S-type planet excludes it.
                 central_mass = masses[star_idx] + sum(

@@ -1,17 +1,21 @@
 """
-Python/tests/helpers/precision.py
+tests/helpers/precision.py
 
 Standard/multiple-precision helpers shared across the std/mpfr parametrized
 tests (test_kepler.py, test_lorenz.py).
 
-``exotides`` (Python/src/exotides/) is importable because the package is
-installed in editable mode (``pip install -e .`` from Python/, see
+``exotides`` (src/exotides/) is importable because the package is installed
+in editable mode (``pip install -e .`` from the repository root, see
 README.md) -- no ``sys.path`` manipulation needed for it. This package
-(Python/tests/helpers/) is test-only support code, never imported by
-``exotides`` itself, so it isn't installed; each ``test_*.py`` script is run
-directly (``python test_foo.py``), which puts its own directory
-(Python/tests/) on ``sys.path`` automatically, making ``from helpers import
-...`` resolve without any extra setup either.
+(tests/helpers/) is test-only support code, never imported by ``exotides``
+itself, so it isn't installed; each ``test_*.py`` script is run directly
+(``python test_foo.py``), which puts its own directory (tests/) on
+``sys.path`` automatically, making ``from helpers import ...`` resolve
+without any extra setup either.
+
+``PYTHON_DIR`` is the repository root (the name dates from an older layout
+in which the package lived in a ``Python/`` subfolder); figures are saved
+under it.
 """
 
 from pathlib import Path
@@ -22,12 +26,11 @@ from exotides.core import HAS_GMPY2, gmpy2
 
 
 PYTHON_DIR = Path(__file__).resolve().parents[2]
-REPO_DIR = PYTHON_DIR.parent
 
 
 def assert_close(actual, expected, tol, label):
-    # Comprobación común: calcula el error máximo absoluto, igual que hacen
-    # los drivers C al comparar el estado final con una referencia.
+    # Common check: the maximum absolute error, as computed by the C drivers
+    # when they compare the final state with a reference.
     actual = np.asarray(actual, dtype=np.float64)
     expected = np.asarray(expected, dtype=np.float64)
     error = float(np.max(np.abs(actual - expected)))
@@ -89,7 +92,7 @@ def solver_settings(mode, std_tol=1e-15, mpfr_tol="1e-30", std_maxord=26, mpfr_m
 def kepler_mincseries(t, v, p, XVAR, ORDER, MO):
     from exotides.core import HAS_GMPY2, gmpy2, mul_mc, pow_mc_c
 
-    # Generador de series equivalente al ejemplo C std_kepler/minc_kepler:
+    # Series generator equivalent to the C example std_kepler/minc_kepler:
     # x' = vx, y' = vy, vx' = -mu*x/r^3, vy' = -mu*y/r^3.
     x, y, vx, vy = range(1, 5)
     is_mpfr = HAS_GMPY2 and any(isinstance(value, gmpy2.mpfr) for value in v)
@@ -110,8 +113,8 @@ def kepler_mincseries(t, v, p, XVAR, ORDER, MO):
     XVAR[0, vy] = v[3]
 
     for i in range(ORDER):
-        # En cada orden se actualiza r^-3 y se escribe el siguiente
-        # coeficiente de Taylor de posición y velocidad.
+        # At each order, update r^-3 and write the next Taylor coefficient
+        # of position and velocity.
         r2[i] = mul_mc(XVAR[:, x], XVAR[:, x], i) + mul_mc(XVAR[:, y], XVAR[:, y], i)
         r3inv[i] = pow_mc_c(r2, -1.5, r3inv, i)
 
@@ -125,8 +128,8 @@ def kepler_mincseries(t, v, p, XVAR, ORDER, MO):
 def lorenz_mincseries(t, v, p, XVAR, ORDER, MO):
     from exotides.core import HAS_GMPY2, gmpy2, mul_mc
 
-    # Generador de series equivalente al ejemplo C std_lorenz/minc_lorenz:
-    # sistema caótico de Lorenz con parámetros sigma, rho y beta.
+    # Series generator equivalent to the C example std_lorenz/minc_lorenz:
+    # the chaotic Lorenz system with parameters sigma, rho and beta.
     x, y, z = range(1, 4)
     sigma, rho, beta = p
     is_mpfr = HAS_GMPY2 and any(isinstance(value, gmpy2.mpfr) for value in v)
@@ -141,8 +144,8 @@ def lorenz_mincseries(t, v, p, XVAR, ORDER, MO):
     XVAR[0, z] = v[2]
 
     for i in range(ORDER):
-        # Los productos xy y xz se calculan como productos de series, no como
-        # productos de valores escalares del estado.
+        # The products xy and xz are computed as products of series, not as
+        # products of scalar state values.
         xy = mul_mc(XVAR[:, x], XVAR[:, y], i)
         xz = mul_mc(XVAR[:, x], XVAR[:, z], i)
 

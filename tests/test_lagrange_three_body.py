@@ -47,8 +47,9 @@ initial-condition rounding delays the deviation from float64-noise-level
 vs. ~period 7-8 for the float64-seeded case -- a real, substantial delay,
 just a logarithmic one rather than "mpfr fixes it."
 
-``main()`` integrates 12 periods (``python test_lagrange_three_body.py
-[std|mpfr]``, default ``std``) and asserts energy is conserved -- the
+``main()`` (``python test_lagrange_three_body.py``) integrates 12 periods in
+``mpfr`` mode at 200 bits, like the pytest entry point, and asserts energy
+is conserved -- the
 homographic/self-similar property itself is reported (``max triangle-side
 deviation``) but not asserted on, since -- per the above -- 12 periods is
 already past the point where either mode's triangle still looks

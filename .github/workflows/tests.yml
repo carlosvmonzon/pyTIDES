@@ -1,12 +1,5 @@
 name: Tests
 
-# NOTE: this file lives at pyTIDES/.github/workflows/tests.yml. GitHub
-# Actions only picks up workflows under a repository's *root* .github/
-# directory -- right now pyTIDES/ is a subfolder of a larger, unrelated
-# monorepo, so this workflow is inert until pyTIDES/ becomes the root of
-# its own repository (see docs/design-notes.md and the project's
-# production-readiness notes). At that point this file needs no changes.
-
 on:
   push:
     branches: [main]
@@ -21,7 +14,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install ruff
-        run: pip install ruff>=0.16
+        run: pip install "ruff>=0.16"
       - name: ruff check
         run: ruff check src/ tests/
 

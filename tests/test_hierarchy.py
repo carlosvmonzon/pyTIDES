@@ -21,9 +21,9 @@ Two checks:
 Runs in both ``std`` (float64) and ``mpfr`` (arbitrary precision) modes --
 see ``parse_precision_mode`` (``python test_hierarchy.py [std|mpfr]``).
 Only the *integration* runs at that precision (``TidesSolver.is_mpfr``,
-set directly on the solver by ``solve_and_plot_hierarchy``); hierarchy
-construction (``HierarchicalSystemTemplates``) always builds plain
-``float64`` regardless of mode.
+set directly on the solver by ``solve_and_plot_hierarchy``); the initial
+conditions are built in plain ``float64`` in both modes (``G`` and the
+masses/elements used here are Python floats).
 """
 
 import sys
@@ -68,11 +68,13 @@ def print_solution(key, t_hist, positions, velocities, nodes):
 #
 # - Multi-star hierarchies use a wide enough separation ratio to satisfy the
 #   Holman-Wiegert / Mardling-Aarseth stability limits.
-# - In the "chain" triples (a third star orbiting one binary component, not
-#   the pair's barycenter), that component's own gravity is all the code
-#   accounts for -- so the inner pair is given a lopsided mass ratio (one
-#   star near 1e-3) to keep that approximation accurate. See the note in
-#   README.md.
+# - In the "chain" triples (a third star whose template parent is one
+#   component of the inner binary), the inner pair has a lopsided mass ratio
+#   (one star near 1e-3). This dates from an earlier construction that
+#   needed it; the binary-tree construction is exact for any masses (the
+#   third star orbits the inner pair's barycenter), so it is no longer
+#   required, but it is kept so these examples and their plots stay
+#   unchanged.
 # - Moons (and, in the lopsided chain triples, the S-type planet orbiting the
 #   light star) are kept at ~0.3x the Hill radius of their immediate parent,
 #   well under the ``MOON_HILL_FRACTION`` limit enforced by ``build()``.
@@ -364,10 +366,9 @@ def plot_examples(output_dir, animate=False, mode="std"):
     a bare Kepler orbit has no secular/periodic variation to show.
 
     ``mode`` ("std" or "mpfr", see ``parse_precision_mode``) picks the
-    *integration's* precision via ``is_mpfr`` -- the initial conditions
-    built by ``HierarchicalSystemTemplates``/``HierarchicalSystem`` are
-    always plain ``float64`` regardless of ``mode`` (see ``TidesSolver``'s
-    ``is_mpfr``, the sole place precision is chosen).
+    *integration's* precision via ``is_mpfr`` -- the initial conditions are
+    built in plain ``float64`` regardless of ``mode`` (see the module
+    docstring).
 
     Returns the list of every saved file path.
     """
@@ -408,7 +409,7 @@ def plot_examples(output_dir, animate=False, mode="std"):
             # The smaller body's orbit: a lone moon if present (it's always
             # the lightest, unique body); otherwise the outermost of the
             # tied-lightest planets/stars -- see select_smaller_body's
-            # docstring (utils/hierarchy_reference.py). select_smaller_body
+            # docstring (helpers/hierarchy_reference.py). select_smaller_body
             # works in *template* body-index space (matching masses/
             # elements/template.parents), which is NOT always the same as
             # the state-vector/``nodes`` order -- see state_index_by_name's
@@ -492,7 +493,7 @@ def test_catalog_examples(output_dir=None):
 
 
 def main():
-    mode = parse_precision_mode(sys.argv, "Python/tests/test_hierarchy.py")
+    mode = parse_precision_mode(sys.argv, "tests/test_hierarchy.py")
     if not configure_precision(mode):
         return
 

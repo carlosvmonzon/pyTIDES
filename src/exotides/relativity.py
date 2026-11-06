@@ -8,7 +8,7 @@ Simplified "dominant mass" 1PN acceleration (Anderson et al. 1975; the same
 approximation used by, e.g., REBOUNDx's basic ``gr`` module): for each pair
 of bodies, the lighter body's acceleration gets an extra correction treating
 the heavier body as an (approximately fixed) point-mass source of parameter
-GM = G*M:
+GM = G*M (when the two masses are equal, both bodies receive it):
 
     a_PN = (GM / c^2) * [ (4*GM/r - v^2) * r_vec / r^3 + 4*(v.r_vec)/r^3 * v ]
 

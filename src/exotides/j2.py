@@ -13,11 +13,9 @@ physics, and are left operational.
 
 Continuous J2 (Earth-oblateness-on-Moon) perturbation for the TIDES N-body
 package, added as a genuine term inside the Taylor-series recurrence (not a
-discrete "kick" applied between separate integration segments -- see
-besseleclipse's docs/09_fisica_combinada_jupiter_venus_j2.md and
-docs/11_j2_continuo.md for why the discrete-kick approach turned out to have
-a real numerical stability threshold around dt~1-2 days for century-long
-integrations).
+discrete "kick" applied between separate integration segments: an earlier
+discrete-kick implementation, in a separate project, showed a real numerical
+stability threshold around dt~1-2 days for century-long integrations).
 
 Physical model: the standard J2 zonal-harmonic acceleration on a body due to
 an oblate primary, primary's spin axis fixed along +Z of the integration

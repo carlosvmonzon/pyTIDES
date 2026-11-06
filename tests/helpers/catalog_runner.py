@@ -1,5 +1,5 @@
 """
-Python/tests/helpers/catalog_runner.py
+tests/helpers/catalog_runner.py
 
 Shared "solve one hierarchy-template configuration and save its 3D plot
 (+ optional animation)" loop body, consolidating what used to be two

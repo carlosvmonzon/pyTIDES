@@ -1,5 +1,5 @@
 """
-Python/tests/helpers/orbital_analysis.py
+tests/helpers/orbital_analysis.py
 
 Osculating-orbit analysis shared across tests that need more than a saved
 plot from exotides.plotting.plot_orbital_elements (e.g. computing a precession

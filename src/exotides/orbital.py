@@ -7,12 +7,14 @@ Contents
 --------
 - keplerian_to_cartesian  - convert classical Keplerian elements to Cartesian
                             relative position and velocity vectors.
+- cartesian_to_keplerian  - the inverse conversion, to osculating elements.
 - HierarchicalSystem      - build barycentric initial conditions for
                             hierarchical N-body configurations defined via
                             a tree of orbital elements.
 
-Both routines support double precision (float) and multiple precision
-(gmpy2.mpfr) transparently.
+keplerian_to_cartesian and HierarchicalSystem support double precision
+(float) and multiple precision (gmpy2.mpfr) transparently;
+cartesian_to_keplerian always works in float64.
 
 Copyright (C) 2026  Carlos Vazquez Monzon
 
@@ -87,22 +89,22 @@ def keplerian_to_cartesian(a, e, i, lan, aop, ta, mu):
         isinstance(x, gmpy2.mpfr) for x in [a, e, i, lan, aop, ta, mu]
     )
 
-    # Primero se calcula en el plano orbital perifocal, donde las ecuaciones
-    # de Kepler son directas.
+    # Work first in the perifocal frame of the orbital plane, where Kepler's
+    # equations are straightforward.
     p_param  = a * (1.0 - e ** 2)
     r        = p_param / (1.0 + e * _cos(ta))
     x_peri   = r * _cos(ta)
     y_peri   = r * _sin(ta)
     z_peri   = a * 0.0   # preserves mpfr zero if needed
 
-    # Velocidad en el mismo sistema perifocal.
+    # Velocity in the same perifocal frame.
     h        = _sqrt(mu * p_param)
     vx_peri  = -(mu / h) * _sin(ta)
     vy_peri  =  (mu / h) * (e + _cos(ta))
     vz_peri  = a * 0.0
 
-    # Matriz de rotación desde el plano orbital al marco inercial:
-    # R = Rz(-lan) * Rx(-i) * Rz(-aop).
+    # Rotation matrix from the orbital plane to the inertial frame:
+    # R = Rz(lan) * Rx(i) * Rz(aop), with active rotations.
     cos_lan = _cos(lan);  sin_lan = _sin(lan)
     cos_aop = _cos(aop);  sin_aop = _sin(aop)
     cos_i   = _cos(i);    sin_i   = _sin(i)
@@ -361,8 +363,8 @@ class HierarchicalSystem:
         """
         One node of the binary tree of nested subsystems: either a single
         body (leaf) or the Keplerian orbit joining two subsystems, ``inner``
-        (the interior reference) and ``outer`` (the subsystem bound to the
-        body whose ``elements`` describe that orbit).
+        (everything interior to that orbit) and ``outer`` (the subsystem
+        bound to the body whose ``elements`` describe that orbit).
         """
         def __init__(self, mass, bodies, inner=None, outer=None, elements=None):
             self.mass     = mass
@@ -457,8 +459,8 @@ class HierarchicalSystem:
 
         self._place(self._build_subsystems(), self._zero_vector(), self._zero_vector())
 
-        # Recorrido en preorden: este orden determina cómo se empaquetan
-        # posiciones, velocidades y masas en los vectores de salida.
+        # Pre-order traversal: this order determines how positions,
+        # velocities and masses are packed into the output vectors.
         ordered_nodes = []
 
         def traverse(node):

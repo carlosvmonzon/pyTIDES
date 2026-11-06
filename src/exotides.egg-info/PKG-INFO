@@ -30,21 +30,24 @@ Requires-Dist: ruff>=0.16; extra == "dev"
 Requires-Dist: pre-commit>=3.5; extra == "dev"
 Dynamic: license-file
 
-# pyTIDES: a Taylor-series N-body integrator for hierarchical exoplanet systems
+# pyTIDES: a Taylor-series integrator for small-N gravitational systems
 
 A high-precision, variable-stepsize, variable-order N-body solver using the **TIDES**
-(Taylor Integration of Differential EquationS) Taylor-series method (Abad et al. 2012), with a
-Python-first package built around **one specific problem**: hierarchical exoplanet systems
-(star-planet-moon, binary and triple stars with S-type/P-type planets, up to 5 bodies), built
-from named, ready-to-use templates instead of hand-rolled initial conditions.
+(Taylor Integration of Differential EquationS) Taylor-series method (Abad et al. 2012), as a
+Python-first package for the gravitational N-body problem with small N. It is built around
+**hierarchical systems** of stars, planets and moons: a general builder turns the description
+of any hierarchy (each body's parent and Keplerian elements) into barycentric initial
+conditions, and a catalog of 22 named, ready-to-use templates (star-planet-moon, binary and
+triple stars with S-type/P-type planets, up to 5 bodies) covers the common cases without
+hand-rolled initial conditions.
 
 **This is deliberately not a general-purpose N-body package.** The Taylor-series integrator
 itself (`src/exotides/core.py`'s `TidesSolver`) and the gravitational N-body generator it drives
 (`src/exotides/nbody.py`'s `nbody_mincseries`) are generic: no built-in notion of "hierarchy"
 and no hard cap on the number of bodies. What's actually scoped to hierarchies is everything
 built *on top* of that engine: the template catalog (`src/exotides/hierarchy.py`), the
-Jacobi-ordering/interior-reference convention used to turn a tree of Keplerian elements into
-barycentric initial conditions (`HierarchicalSystem._resolve()` in `src/exotides/orbital.py`),
+binary-tree (Jacobi-type) construction used to turn a tree of Keplerian elements into
+barycentric initial conditions (`HierarchicalSystem._build_subsystems()`/`_place()` in `src/exotides/orbital.py`),
 the 1PN correction, the plotting helpers, and the choice to always treat a collision as terminal
 (see Features Guide §6) rather than merging bodies. See
 [`docs/design-notes.md`](docs/design-notes.md) for the precise, code-level breakdown of what is
@@ -137,20 +140,27 @@ runs the same lint check plus the full pytest matrix on every push/PR.
 ## Features Guide
 
 ### 1. Double and Multiple Precision
-Initial conditions (`HierarchicalSystem`, `pack_state`, ...) are always built as plain `float64`;
-precision is chosen in exactly one place, `TidesSolver(is_mpfr=...)`:
+The integration precision is chosen by `TidesSolver(is_mpfr=...)`:
 - `is_mpfr=None` (default): auto-detects from whether `v_init`/`p_init` passed to `solve()` already
   hold `gmpy2.mpfr` values.
 - `is_mpfr=False`/`True`: forces double/arbitrary precision regardless of how `v_init`/`p_init` were
   built, converting them up front via `exotides.core.to_mpfr` when needed.
 
-Set the target precision with `gmpy2.get_context().precision = BITS` before solving.
-- **Double precision**: typically achieves energy conservation to $\approx 10^{-15}$.
-- **Multiple precision**: achieves energy conservation to $10^{-40}$ or smaller.
+Initial conditions are built in plain `float64` unless they are built from `gmpy2.mpfr` inputs:
+`HierarchicalSystem(G=gmpy2.mpfr(...))` with `mpfr` masses and elements, or `pack_state` with
+`mpfr` positions and velocities, keep arbitrary precision from the very start. That matters for
+unstable or chaotic configurations (see `tests/test_lagrange_three_body.py`), because
+`is_mpfr=True` alone integrates a `float64`-rounded starting point at higher precision.
 
-`HierarchicalSystemTemplates.solve_nbody`/`make_nbody_solver` (below) have no `is_mpfr` parameter of
-their own; `TidesSolver` really is the only place it lives, so for arbitrary precision with a
-hierarchy template, set it on the solver `make_nbody_solver` returns before calling `.solve()`:
+Set the target precision with `gmpy2.get_context().precision = BITS` before solving.
+- **Double precision**: energy errors down to the round-off level ($\approx 10^{-15}$ on short
+  integrations; $10^{-13}$-$10^{-12}$ over $10^4$ orbits of a hierarchical triple or 2+2
+  quadruple at `tol = 1e-14`).
+- **Multiple precision**: energy conservation to $10^{-40}$ or smaller, with a matching tolerance.
+
+`HierarchicalSystemTemplates.solve_nbody` always integrates in double precision. For arbitrary
+precision with a hierarchy template, use `solve_hierarchy(..., is_mpfr=True)`, or set it on the
+solver `make_nbody_solver` returns before calling `.solve()`:
 ```python
 v_init, p_init, nodes = HierarchicalSystemTemplates.initial_conditions("star_planet", masses, elements=elements)
 solver = HierarchicalSystemTemplates.make_nbody_solver("star_planet")
@@ -185,7 +195,11 @@ sys.add_body(
 v_init, p_init, ordered_nodes = sys.generate()
 ```
 `HierarchicalSystem` resolves all orbits into absolute, barycentric positions/velocities (total
-linear momentum exactly zero) using proper Jacobi coordinates (see the note below).
+linear momentum zero to round-off) using hierarchical (Jacobi-type) coordinates (see the note
+below). Each body's elements describe the orbit of its *subsystem's* barycenter (the body plus
+anything bound to it on tighter orbits) around the barycenter of everything interior to it, so
+the Earth's elements above are those of the Earth-Moon barycenter. The same builder handles
+hierarchies outside the template catalog, such as a 2+2 quadruple.
 
 ### 4. 1PN Relativistic Correction
 A pairwise "dominant mass" 1PN correction (`src/exotides/relativity.py`) reproduces general-relativistic
@@ -199,11 +213,14 @@ t_hist, states, p_init, nodes = HierarchicalSystemTemplates.solve_nbody(
     tend=100.0, dt=0.1, physics="pn", speed_of_light=1.0e4,
 )
 ```
-`physics="pn"` works with *any* catalog template, not just a bare two-body system, including
-comparable-mass stellar binaries/triples (`exotides.plotting.plot_pn_comparison` computes the correct
-two-body/Jacobi reference mass in either case, not just a "light test particle" approximation).
-It's a simplified, reduced two-body-per-pair approximation (not a full Einstein-Infeld-Hoffmann
-treatment), appropriate for the hierarchical star/planet/moon regime this package targets.
+`physics="pn"` can be used with *any* catalog template, not just a bare two-body system. It's a
+simplified, reduced two-body-per-pair approximation (not a full Einstein-Infeld-Hoffmann
+treatment): for each pair, only the lighter body receives the correction (both, for equal
+masses). That is accurate when every relevant pair has a dominant mass (star-planet,
+planet-moon), the hierarchical regime this package targets, but biased for comparable masses:
+for an isolated equal-mass pair it overestimates the precession by about a third, independently
+of `c`. (`exotides.plotting.plot_pn_comparison` measures the precession against the correct
+two-body/Jacobi reference mass, so such a bias shows up in its plots rather than being hidden.)
 
 `physics="pn"` also checks every interacting pair's mass ratio (`exotides.relativity.pn_pair_quality`)
 and raises a `UserWarning` (naming the worst-quality pair) whenever that approximation is a poor fit,
@@ -235,7 +252,7 @@ this directly rather than quoting one number from one small system; a representa
 
 ### 6. Event Detection (Collisions & Zero-Crossings)
 Ported from the original C TIDES library's event-detection subsystem (`doubEVENTS.c`/
-`mpfrEVENTS.c`), never previously part of pyTIDES. `TidesSolver.solve(..., events=[...])` watches
+`mpfrEVENTS.c`). `TidesSolver.solve(..., events=[...])` watches
 for zero-crossings of any scalar function of the state during integration, locating each crossing
 by bisecting on the *dense Taylor polynomial already computed for the current adaptive step*, so
 no re-integration or step shrinking is needed. This is exactly the mechanism the C library's
@@ -260,26 +277,27 @@ hands the exact contact time/state back to the caller to decide what to do next.
 collision handling.
 
 ### 7. Stepsize Controller Choice
-`TidesSolver(stepsize_controller=...)` selects which stepsize-estimate formula `get_step` uses
+`TidesSolver(stepsize_controller=...)` selects which step-size estimate `get_step` uses
 (`src/exotides/core.py`). Both share every other ingredient (last-nonzero-coefficient search,
 `[rmin, rmax]`-relative step clamping, safety factor), so the two isolate exactly this one
 difference:
-- `"pytides"` (default): pairs each retained Taylor coefficient with the tolerance exponent of the
-  *next*, untruncated order (the formula pyTIDES actually ships).
-- `"original"`: Abad et al. (2012, Algorithm 924)'s own same-index pairing, where a coefficient at
-  order *k* contributes `(TOL/|y^[k]|)^(1/k)`.
+- `"original"` (default): Abad et al. (2012, Algorithm 924)'s own same-index pairing, where a
+  coefficient at order *k* contributes `(TOL/|y^[k]|)^(1/k)`.
+- `"pytides"`: the variant shipped as the default in the first public release. It pairs each
+  retained coefficient with the tolerance exponent of the *next* order, which amounts to the
+  `"original"` estimate evaluated at a looser, order-dependent effective tolerance
+  `TOL^(q/(q+1))`.
 
-They are not algebraically equivalent, and the difference isn't just academic: on an isolated
-two-body Kepler orbit, at fixed requested tolerance, `"pytides"` takes ~22-23% fewer steps than
-`"original"`, but its achieved accuracy is measurably worse, 14.8x worse at `e=0.0`/`0.6` and
-232x worse at `e=0.9` (where curvature concentrates hardest at pericenter). That eccentricity
-trend is demonstrated only for this isolated two-body case; whether it generalizes to systems with
-additional, disparate dynamical timescales is an open question. What isn't in question is the
-direction of the trade-off itself, cheaper but never more accurate, at every eccentricity tested.
-See `experiments/exp8_stepsize_controller.py` for the full comparison (table + figure) and the
-paper's stepsize-controller-comparison section for the complete discussion. `solver.last_run_stats`
-(set after every `solve()` call) exposes `accepted_steps`/`rejected_steps`/`mean_order`/
-`coefficient_evals` for building this kind of comparison yourself.
+At the same requested tolerance, `"pytides"` uses about 20% fewer Taylor-coefficient evaluations
+but returns errors about ten times larger, and both controllers lie on the same cost-vs-error
+curve (work-precision comparison on a Kepler orbit with `e=0.9` and on a hierarchical triple). The
+choice is therefore a trade-off, not an improvement. `"pytides"` also honours the requested
+tolerance less literally: in long integrations of hierarchical systems with a short inner period,
+its larger local errors can accumulate into a spurious instability that `"original"` does not
+show, which is why `"original"` is the default. To trade accuracy for speed, prefer a looser
+tolerance with `"original"`. `solver.last_run_stats` (set after every `solve()` call) exposes
+`accepted_steps`/`rejected_steps`/`mean_order`/`coefficient_evals` for building this kind of
+comparison yourself.
 
 `stepsize_controller` is also available through `HierarchicalSystemTemplates.solve_nbody`/
 `solve_hierarchy`/`make_nbody_solver` (passed straight through to the `TidesSolver` they build),
@@ -305,18 +323,25 @@ t_hist, states, p_init, nodes = HierarchicalSystemTemplates.solve_nbody(
 )
 ```
 
+The templates are only examples of the general construction: for a hierarchy outside the
+catalog (for example a 2+2 quadruple), build it directly with `HierarchicalSystem` (Features
+Guide §3).
+
 Planets are marked **S** (circumstellar, orbits one star) or **P** (circumbinary,
-orbits a binary's barycenter). Below, each key's diagram is a schematic (not to
+orbits a binary's barycenter). The label is used to validate a template and to choose its
+default elements; the construction itself decides which bodies an orbit encloses from the
+semi-major axes alone, so explicitly supplied elements must match the label (an S-type planet
+inside the binary's orbit, a P-type planet outside it). Below, each key's diagram is a schematic (not to
 scale, semi-major axes are log-compressed for legibility) where dot size encodes
 relative mass and distance from its parent encodes relative orbital separation:
 <span style="color:#e8a33d">●</span> star, <span style="color:#4C78A8">●</span> planet,
 <span style="color:#8a8a8a">●</span> moon. The dashed connector for each body doesn't
 necessarily run to its parent's own dot; it runs to the mass-weighted **barycenter**
-(marked "+") of everything that body's orbit is actually anchored to, which can be a
-combination of the parent, closer siblings, and the parent's whole ancestor chain
-(see the note below). These diagrams are generated by feeding those compressed
-semi-major axes into the real `HierarchicalSystem` machinery, so they show exactly
-what the physics does, not a separately-maintained illustration:
+(marked "+") of everything interior to that body's orbit, which can combine the parent,
+closer siblings and, where their orbits are tighter, the parent's own ancestors
+(see the note below). These diagrams were generated by feeding those compressed
+semi-major axes into `HierarchicalSystem` itself, so they show what the construction
+does rather than a separately maintained illustration:
 
 ### single_star
 One isolated central star.
@@ -403,7 +428,8 @@ P-type orbits.
 ![binary_two_p_planets](figures/hierarchy_diagrams/binary_two_p_planets.png)
 
 ### triple_star_flat
-Two stellar companions orbit the primary star directly.
+Two stellar companions are declared around the primary star; the wider one orbits the
+barycenter of the primary and the closer companion (see the note below).
 
 ![triple_star_flat](figures/hierarchy_diagrams/triple_star_flat.png)
 
@@ -433,23 +459,23 @@ Two planets orbit two different stellar components.
 
 ![triple_star_two_s_planets](figures/hierarchy_diagrams/triple_star_two_s_planets.png)
 
-> **Jacobi-ordering convention.** Every body's orbit is anchored to the combined mass
-> *and* combined barycenter of everything interior to it: its parent, any sibling
-> that orbits closer in (smaller semi-major axis), and the parent's *entire* ancestor
-> chain, each contributing in turn, rather than just its immediate parent in isolation. A
-> sibling or ancestor link that's wider than the body's own orbit is excluded, treated
-> as an external perturber instead. So in `binary_s_planet_primary`, Star B's orbit
-> correctly accounts for Planet A's mass (negligible here, but not in general), while
-> Planet A's own orbit correctly ignores the far-away Star B. And in
-> `triple_star_chain`, Star C's orbit correctly accounts for *both* Star A and Star B
-> combined, not just Star B, its immediate parent, which is why the diagrams above
-> can use equal-mass twins for the inner pair instead of a lopsided ratio: a real
-> hierarchical triple with two comparable-mass inner stars is now handled correctly.
-> Both the diagrams above and `HierarchicalSystem._resolve()`/`_interior_reference()`
-> use this same rule, so a heavy inner sibling or a whole inner subsystem visibly
-> displaces where a wider body's orbit is anchored, in both. The same rule is applied
-> by `src/exotides/plotting.py`'s `plot_orbital_elements`/`plot_pn_comparison` when computing
-> a body's *osculating* elements or PN precession relative to a multi-body reference.
+> **Hierarchy convention.** `HierarchicalSystem._build_subsystems()` turns the
+> parent-child description into a binary tree of nested subsystems, processing the
+> orbits in ascending semi-major axis. The orbit of a body with semi-major axis *a*
+> encloses every body connected to its parent through orbits with semi-major axes
+> smaller than *a*; anything wider is an external perturber. A body's elements then
+> describe the relative orbit of two barycenters: that of its own subsystem (the body
+> plus anything bound to it on tighter orbits) around that of everything interior to its
+> orbit, with `mu = G * (M_inner + M_outer)`. So in `binary_s_planet_primary`, Star B
+> orbits the barycenter of Star A and Planet A, while Planet A's own orbit ignores the
+> far-away Star B. In `triple_star_chain`, Star C orbits the barycenter of Star A and
+> Star B combined, not Star B alone, which is why the diagrams above can use equal-mass
+> twins for the inner pair. And in a 2+2 quadruple (not in the catalog), the outer orbit
+> joins the barycenters of the two binaries. The construction is exact for any masses and
+> barycentric by construction. To measure a body's *osculating* elements or PN precession
+> against the same multi-body reference, `src/exotides/plotting.py`'s
+> `plot_orbital_elements`/`plot_pn_comparison` accept a list of reference bodies
+> (`parent_idx`).
 
 ---
 
@@ -464,9 +490,9 @@ Requires the package installed with the `test` extra (`pip install -e ".[test]"`
 py -m pytest
 ```
 
-(`pytest` alone also works if the command is on your `PATH`.) This discovers and runs all 23
-tests under `pyTIDES/tests/` and prints a pass/fail summary, with no arguments and no need to
-name individual files. It's the quickest way to confirm the whole verification suite still
+(`pytest` alone also works if the command is on your `PATH`.) This discovers and runs every
+test under `tests/` and prints a pass/fail summary, with no arguments and no need to name
+individual files. It's the quickest way to confirm the whole verification suite still
 passes, e.g. after a change. It does **not** generate any plots/animations: every test defaults
 to skipping figure output under pytest for speed (see the next section to actually produce them).
 
@@ -490,6 +516,8 @@ python test_kozai_nbody.py        # Kozai-Lidov eccentricity/inclination oscilla
 python test_relativity.py         # 1PN correction vs. the analytic GR precession formula
 python test_fast_nbody.py         # Numba path vs. pure-Python core: correctness + speedup scaling with N bodies
 python test_events.py             # Zero-crossing/collision event detection (terminal & non-terminal)
+python test_lagrange_three_body.py  # Lagrange's equilateral solution, at 200-bit precision
+python test_pythagorean_three_body.py  # Pythagorean three-body problem (non-hierarchical)
 ```
 
 `test_kepler.py`/`test_lorenz.py` also accept an `mpfr` argument to run in

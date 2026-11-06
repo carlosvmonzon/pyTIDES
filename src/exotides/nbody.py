@@ -5,16 +5,22 @@ N-body dynamics for the TIDES integrator.
 
 Contents
 --------
-- nbody_mincseries  - TIDES-compatible Taylor-series generator for the
-                      gravitational N-body equations of motion.
-- pack_state        - flatten (positions, velocities) → 1-D state vector.
-- unpack_state      - split 1-D state vector → (positions, velocities).
-- compute_energy    - total mechanical energy (T + V) for N-body systems.
+- nbody_mincseries     - TIDES-compatible Taylor-series generator for the
+                         gravitational N-body equations of motion.
+- nbody_pn_mincseries  - the same, plus the pairwise 1PN correction
+                         (exotides/relativity.py).
+- pack_state           - flatten (positions, velocities) → 1-D state vector.
+- unpack_state         - split 1-D state vector → (positions, velocities).
+- compute_energy       - total mechanical energy (T + V) for N-body systems.
 
-Initial conditions built here are always plain float64 -- to integrate at
-arbitrary precision, pass is_mpfr=True to exotides.core.TidesSolver, the
-sole place precision is chosen (it converts v_init/p_init via
-exotides.core.to_mpfr regardless of the dtype they were built in here).
+(``nbody_j2_mincseries`` is a work in progress and deliberately raises
+``NotImplementedError`` -- see exotides/j2.py.)
+
+``pack_state`` builds plain float64 unless it is given gmpy2.mpfr values, in
+which case it keeps them. The integration precision itself is chosen by
+exotides.core.TidesSolver's ``is_mpfr`` (auto-detected from the state by
+default; ``True`` converts v_init/p_init via exotides.core.to_mpfr
+regardless of the dtype they were built in).
 
 See also exotides.core for as_float64/vector_norm, the mpfr-aware array
 helpers used throughout this module's callers (plotting, tests).
@@ -128,8 +134,8 @@ def _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=False, include_j
     is_mpfr = HAS_GMPY2 and isinstance(v[0], gmpy2.mpfr)
     dtype   = object if is_mpfr else np.float64
 
-    # Buffer estático: se reutiliza entre llamadas para evitar reservar memoria
-    # en cada paso del integrador. Solo crece si cambia el tamaño necesario.
+    # Static buffer, reused across calls to avoid allocating memory at every
+    # integrator step. It only grows when the required size changes.
     cache = _nbody_mincseries_core
     if (
         not hasattr(cache, "_XX_flat")
@@ -150,11 +156,11 @@ def _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=False, include_j
     else:
         XX_flat.fill(0.0)
 
-    # Serie temporal: t(tau) = t0 + tau, por eso el coeficiente de orden 1 es 1.
+    # Time series: t(tau) = t0 + tau, so its order-1 coefficient is 1.
     XX_flat[0] = t
     XX_flat[1] = gmpy2.mpfr("1.0") if is_mpfr else 1.0   # d(t)/dt = 1
 
-    # Estado inicial en orden 0: posiciones y velocidades actuales.
+    # Order 0: current positions and velocities.
     for idx in range(1, VAR + 1):
         XX_flat[idx * stride] = v[idx - 1]
 
@@ -162,8 +168,8 @@ def _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=False, include_j
 
     for i in range(ORDER):
         # ------------------------------------------------------------------
-        # 1. Para cada pareja se construyen dx, dy, dz, r^2 y r^-3.
-        #    Esas series auxiliares se reutilizan al sumar aceleraciones.
+        # 1. For every pair, build dx, dy, dz, r^2 and r^-3. These auxiliary
+        #    series are reused when the accelerations are summed.
         # ------------------------------------------------------------------
         for j in range(N):
             for k in range(j + 1, N):
@@ -249,10 +255,10 @@ def _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=False, include_j
 
                 if include_j2 and j == j2_heavy_idx and k == j2_light_idx:
                     # J2 auxiliary series (exotides/j2.py): r^-2, r^-5, z^2,
-                    # z^2/r^2, y los "corchetes" (1-5z^2/r^2) y (3-5z^2/r^2)
-                    # de la aceleración de achatamiento -- dx,dy,dz aquí ya
-                    # son (ligero - pesado) porque j2_heavy_idx < j2_light_idx
-                    # está garantizado por append_j2_params.
+                    # z^2/r^2 and the "brackets" (1-5z^2/r^2) and (3-5z^2/r^2)
+                    # of the oblateness acceleration -- dx,dy,dz here are
+                    # already (light - heavy), because append_j2_params
+                    # guarantees j2_heavy_idx < j2_light_idx.
                     u_r2inv = XX_flat[(base + 14) * stride : (base + 15) * stride]
                     u_r5inv = XX_flat[(base + 15) * stride : (base + 16) * stride]
                     u_zz    = XX_flat[(base + 16) * stride : (base + 17) * stride]
@@ -274,8 +280,8 @@ def _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=False, include_j
                     u_gz[i]    = mul_mc(u_dz, u_bz, i)
 
         # ------------------------------------------------------------------
-        # 2. Suma de aceleraciones gravitatorias y escritura del siguiente
-        #    coeficiente de Taylor para cada variable de estado.
+        # 2. Sum the gravitational accelerations and write the next Taylor
+        #    coefficient of every state variable.
         # ------------------------------------------------------------------
         if include_pn:
             if not has_pn_params(p, N):
@@ -335,8 +341,8 @@ def _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=False, include_j
                     az += pn_scale * (mul_mc(u_e, u_dz, i) + 4.0 * mul_mc(u_c, u_dvz, i))
 
                 if include_j2 and j == j2_light_idx and k == j2_heavy_idx:
-                    # Aceleracion de achatamiento sobre el cuerpo ligero
-                    # (p.ej. la Luna) debida al pesado (p.ej. la Tierra).
+                    # Oblateness acceleration on the light body (e.g. the
+                    # Moon) due to the heavy one (e.g. the Earth).
                     u_r5inv = XX_flat[(base + 15) * stride : (base + 16) * stride]
                     u_gx    = XX_flat[(base + 20) * stride : (base + 21) * stride]
                     u_gy    = XX_flat[(base + 21) * stride : (base + 22) * stride]
@@ -349,10 +355,9 @@ def _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=False, include_j
                     ay += j2_scale * mul_mc(u_r5inv, u_gy, i)
                     az += j2_scale * mul_mc(u_r5inv, u_gz, i)
                 elif include_j2 and j == j2_heavy_idx and k == j2_light_idx:
-                    # Reaccion sobre el cuerpo pesado (conserva el momento
-                    # lineal del par; no hay par de fuerzas sobre su
-                    # orientacion, que aqui se supone fija -- ver
-                    # exotides/j2.py).
+                    # Reaction on the heavy body (it conserves the pair's
+                    # linear momentum; there is no torque on its orientation,
+                    # which is assumed fixed here -- see exotides/j2.py).
                     u_r5inv = XX_flat[(base + 15) * stride : (base + 16) * stride]
                     u_gx    = XX_flat[(base + 20) * stride : (base + 21) * stride]
                     u_gy    = XX_flat[(base + 21) * stride : (base + 22) * stride]
@@ -368,18 +373,18 @@ def _nbody_mincseries_core(t, v, p, XVAR, ORDER, MO, include_pn=False, include_j
 
             inext = i + 1
 
-            # Derivadas cinemáticas: dx/dt = vx, dy/dt = vy, dz/dt = vz.
+            # Kinematic derivatives: dx/dt = vx, dy/dt = vy, dz/dt = vz.
             XX_flat[(6 * j + 1) * stride + inext] = XX_flat[(6 * j + 4) * stride + i] / inext
             XX_flat[(6 * j + 2) * stride + inext] = XX_flat[(6 * j + 5) * stride + i] / inext
             XX_flat[(6 * j + 3) * stride + inext] = XX_flat[(6 * j + 6) * stride + i] / inext
 
-            # Derivadas dinámicas: dv/dt = aceleración gravitatoria.
+            # Dynamical derivatives: dv/dt = gravitational acceleration.
             XX_flat[(6 * j + 4) * stride + inext] = ax / inext
             XX_flat[(6 * j + 5) * stride + inext] = ay / inext
             XX_flat[(6 * j + 6) * stride + inext] = az / inext
 
-    # Copia únicamente tiempo y variables de estado al formato que espera
-    # TidesSolver; las series auxiliares quedan como detalle interno.
+    # Copy only time and the state variables into the layout TidesSolver
+    # expects; the auxiliary series remain an internal detail.
     for j in range(VAR + 1):
         XVAR[:ORDER + 1, j] = XX_flat[j * stride : j * stride + ORDER + 1]
 
@@ -406,8 +411,8 @@ def nbody_mincseries(t, v, p, XVAR, ORDER, MO, use_numba=None):
       function only sees the state vector it was handed, so it can't
       silently downgrade it to float64 -- callers that want "Numba wins,
       just use double precision" should decide that before building ``v``
-      (see ``HierarchicalSystemTemplates.solve_nbody``, which does exactly
-      that: ``use_numba=True`` overrides ``is_mpfr`` to ``False`` there).
+      (``HierarchicalSystemTemplates.solve_nbody``, for instance, always
+      integrates in double precision).
     - ``False``: force the pure-Python core even when Numba is available
       (e.g. to benchmark against it, or work around a JIT issue).
     """
@@ -497,8 +502,8 @@ def pack_state(positions, velocities):
     )
     dtype = object if is_mpfr else np.float64
 
-    # Intercala coordenadas y velocidades por cuerpo para coincidir con el
-    # convenio usado en el código C de TIDES.
+    # Interleave positions and velocities body by body, matching the layout
+    # of the C TIDES code.
     flat = np.empty(6 * N, dtype=dtype)
     for i in range(N):
         flat[6 * i     : 6 * i + 3] = positions[i]
@@ -527,7 +532,7 @@ def unpack_state(flat_state):
     is_mpfr    = HAS_GMPY2 and any(isinstance(x, gmpy2.mpfr) for x in flat_state.flat)
     dtype      = object if is_mpfr else np.float64
 
-    # Admite tanto un único estado como una trayectoria completa.
+    # Accepts either a single state or a whole trajectory.
     if flat_state.ndim == 1:
         N          = len(flat_state) // 6
         positions  = np.empty((N, 3), dtype=dtype)
@@ -568,7 +573,7 @@ def compute_energy(state, masses, G):
     -------
     ndarray of length *steps* (or a scalar for a single snapshot).
     """
-    # Normaliza a formato trayectoria para usar el mismo cálculo en ambos casos.
+    # Normalize to trajectory form so that both cases share one computation.
     is_trajectory = state.ndim == 2
     if not is_trajectory:
         state = state[np.newaxis, :]
@@ -585,13 +590,13 @@ def compute_energy(state, masses, G):
     V.fill(gmpy2.mpfr("0.0") if is_mpfr else 0.0)
 
     for i in range(N):
-        # Energía cinética de cada cuerpo.
+        # Kinetic energy of each body.
         vx = state[:, 6 * i + 3]
         vy = state[:, 6 * i + 4]
         vz = state[:, 6 * i + 5]
         T += 0.5 * masses[i] * (vx**2 + vy**2 + vz**2)
 
-        # Energía potencial gravitatoria de cada pareja, contada una sola vez.
+        # Gravitational potential energy of each pair, counted once.
         for j in range(i + 1, N):
             dx = state[:, 6 * j]     - state[:, 6 * i]
             dy = state[:, 6 * j + 1] - state[:, 6 * i + 1]

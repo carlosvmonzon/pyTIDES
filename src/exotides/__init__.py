@@ -58,8 +58,8 @@ from .plotting import save_figure
 
 from .events import Event, collision_event, all_pairs_collision_events
 
-# API pública del paquete: importar desde exotides expone solo estas funciones y
-# clases, manteniendo internos los detalles de implementación.
+# Public API of the package: importing from exotides exposes only these
+# functions and classes and keeps the implementation details internal.
 __all__ = [
     # Solver & algebra
     "TidesSolver",
