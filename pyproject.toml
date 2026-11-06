@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "exotides"
-version = "2.0.0"
+version = "2.0.1"
 description = "Python port of the TIDES Taylor-integration method (Abad et al.) for small-N gravitational systems, with ready-made hierarchical templates up to five bodies."
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
